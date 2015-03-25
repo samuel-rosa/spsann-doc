@@ -21,8 +21,7 @@ distribution of the numeric covariates and class proportion of factor
 covariates. The main assumption for this is that the *true* trend model is more
 likely to be identified if the sample reproduces the marginal distribution/class
 proportion of the covariates. Taking each covariate individually, **ACDC** 
-corresponds to the *equal-area* or *quantile* sampling method (Webster & Lark,
-2013).
+corresponds to the *equal-area* or *quantile* sampling method (WebsterEtAl2013).
 
 The main free and open source implementation of the method of M&M is the 
 R-package ***clhs*** by 
