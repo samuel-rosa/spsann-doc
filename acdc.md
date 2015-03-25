@@ -1,0 +1,528 @@
+---
+title: "Association/correlation and distribution of the covariates - ACDC"
+author: "Alessandro Samuel-Rosa"
+date: "12/02/2015"
+output:
+  html_document:
+    toc: yes
+---
+
+The objective function **ACDC** was designed to optimize sample patterns for 
+trend estimation for soil mapping using statistical models, also known as
+pedometric or digital soil mapping (DSM). The concept behind **ACDC** comes 
+from the method originally proposed by 
+[Minasny and McBratney (2006)](http://dx.doi.org/10.1016/j.cageo.2005.12.009)
+(M&M henceforth), which they called the *conditioned Latin Hypercube Sampling*. 
+This is the most commonly used sampling method for trend estimation for DSM
+nowadays.
+
+The general idea of the method of M&M is to reproduce in the sample the marginal
+distribution of the numeric covariates and class proportion of factor 
+covariates. The main assumption for this is that the *true* trend model is more
+likely to be identified if the sample reproduces the marginal distribution/class
+proportion of the covariates. Taking each covariate individually, **ACDC** 
+corresponds to the *equal-area* or *quantile* sampling method (Webster & Lark,
+2013).
+
+The main free and open source implementation of the method of M&M is the 
+R-package ***clhs*** by 
+[Roudier et al. (2012)](http://cran.r-project.org/web/packages/clhs/). The
+package extended the method of M&M including the possibility to consider a cost
+surface that penalizes sampling locations that are difficult to access. Other
+researchers have also implemented the method of M&M as to consider a cost
+function ([Mulder et al., 2013](dx.doi.org/10.1016/j.jag.2012.07.004);
+[Clifford et al., 2014](dx.doi.org/10.1016/j.cageo.2014.03.005)), but none is
+available as a free software package. The current version of the R-package
+***spsann*** does not consider operational constraints.
+
+Built on top of the experience gained since the publication of the method of 
+M&M in 2006, ***spsann*** tries to go a step further in the knowledge on
+sampling for trend estimation. The implementation of the objective function 
+**ACDC** as `optimACDC()` includes new features without excluding the basic 
+ideas and strength of the method of M&M. We describe bellow these features, 
+pointing to the weak and strong points of our software implementation. We end 
+presenting the equations used to define our objective function.
+
+# Covariates
+
+Five types of covariates, also known as predictor variables, can be used to
+calibrate a trend model for DSM. Let us see their definition (Everitt, 2006):
+
+* Binary: covariates which occur in one of two possible states (true/false,
+yes/no), these often being labelled 0 and 1. Example: presence/absence of rock
+outcrops, change/no change in land use, and deep/shallow soil.
+
+* Continuous: covariates not restricted to particular values except in so
+far as this is constrained by the accuracy of the measuring instrument. 
+Example: slope, NDVI, and clay content.
+
+* Categorical: covariates that give the appropriate label of an observation
+after allocation to one of several possible categories. Example: soil taxa, 
+land use type, and geological formation.
+
+* Discrete: covariates having only integer values. Example: number of soil
+horizons, number of tillage operations, and number years after burning.
+
+* Ordinal: covariates composed by a measurement that allows the individuals to
+be ranked with respect to some characteristic but where differences at different
+points of the scale are not necessarily equivalent. Example: drainage status
+(poor, moderate, well), profile development (shallow, moderately developed,
+deep), and pollution risk (low, moderate, high).
+
+When we calibrate a trend model in R, we have to be aware that R has different
+definitions for the variables. Continuous and discrete variables are defined as
+numeric and integer variables, respectively. Binary, categorical and ordinal
+covariates are defined as factor variables. The current version of
+`optimACDC()` handles numeric, integer, and factor covariates. For convenience
+we group the first two and call them *numeric* covariates, and maintain the 
+term *factor* for factor covariates.
+
+It is important to bear in mind that, because we are working in the spatial
+setting, the covariates have two important features that make them quite
+different from those covariates used in the traditional statistical setting. 
+These features dictate how they should be handled.
+
+The first important feature is that each covariate is spatially exhaustive, that 
+is, they cover the entire study area. The set of values of a covariate composes
+the population of values of that covariate. As such, when calculating any 
+statistic to describe the population, we should use the appropriate equation for
+population estimates. This also means that the population of covariate values is
+constrained not only by the feature space, but also by the geographic space --
+the limits of the study area. It results that not all mathematically possible
+values exist, and we are constrained to the population of existing values. This
+is why the method of M&M is called *constrained* Latin hypercube sampling.
+
+The second important feature is that the covariates are not random uncertain
+variables (with a few exception). Instead, in DSM we assume that they have been
+measured without error, and attribute to them a deterministic effect on the soil
+property being modelled. The direct consequence is that we cannot make any
+statistical inference about the covariates because the methods of statistical
+inference are devised for random variables. A histogram of frequency, a
+correlation matrix, or and an estimate of the quantiles have only a descriptive
+value.
+
+The adjective *constrained* is an important information about the method of M&M.
+However, the original Latin hypercube sampling method was devised to work with
+random variables for simulations in computer experiments
+([McKay et al., 1979](dx.doi.org/10.2307/1268522);
+[Iman & Conover, 1982](dx.doi.org/10.1080/03610918208812265)). The nature of the
+variables is different from that of those employed in DSM. For example, there
+the variables are characterized by a probability distribution function (PDF) or
+by a multivariate PDF such as a Gaussian random field 
+([Pebesma & Heuvelink, 1999](dx.doi.org/10.1080/00401706.1999.10485930)). This
+shows that, although conceptually similar, the two methods are rather different. 
+These differences have not been fully taken into account so far. We demonstrate
+bellow some of the undesirable consequences and how we solve it in the current
+implementation of `optimACDC()`.
+
+## Numeric covariates
+
+### Sampling strata
+
+Numeric covariates are commonly used to optimize sample patterns to calibrate
+trend models for DSM. Their use requires the definition of sampling strata. Two
+types of sampling strata can be defined:
+
+* Equal-area: the sampling strata are defined as to cover equally-sized areas
+under curve of the frequency distribution of the population of covariate values.
+The sampling strata cover a smaller range of values at the regions where the
+frequency distribution is higher, and a larger range at the regions where the 
+frequency is lower. This guarantees that each sampling strata has the same
+number of units. The method is also known as quantile sampling.
+
+* Equal-range: The sampling strata are defined as to cover the same range of
+values throughout the entire interval between the minimum and maximum value
+without regard to the frequency distribution. The method is also know as uniform
+sampling.
+
+The method of M&M uses *equal-area* sampling strata so that the resulting sample 
+can reproduce the marginal distribution of each covariate. The number of
+sampling strata is set to the number of sample points $N$ so that the sample
+can be marginally maximally stratified. In the Latin hypercube sampling, which 
+is a stratified random sampling technique, the probability that a sample point
+has of falling in each of the sampling strata is equal to $N^{-1}$
+([Pebesma & Heuvelink, 1999](dx.doi.org/10.1080/00401706.1999.10485930)). In the
+method of M&M, these inclusion probabilities cannot be calculated because it is
+a non-probability purposive sampling technique.
+
+The limits of each sampling strata are calculated using an estimate of the
+sample quantiles of the covariate. The implementation in the R-package 
+***clhs*** uses a continuous function to estimate the sample quantiles,
+apparently because this is the default option in the function `quantile()`. But
+because the covariates have a discontinuous nature, although being continuous 
+variables, the sample quantiles cannot be estimated properly using a continuous
+function. Otherwise the limits of the various sampling strata can assume values
+that do not exist in the population of covariate values. The example bellow
+shows that, although we can estimate five sampling strata for a covariate
+composed of fifteen values, some of the break points do not exist in the 
+population of covariate values, such as 2.6 and 4.4:
+
+```r
+> n.pts <- 5
+> covars <- data.frame(x = c(1, 5, 1, 3, 4, 1, 2, 3, 2, 1, 8, 9, 9, 9, 9))
+> probs <- seq(0, 1, length.out = n.pts + 1)
+> breaks <- lapply(covars, quantile, probs, na.rm = TRUE)
+> breaks
+$x
+  0%  20%  40%  60%  80% 100% 
+ 1.0  1.0  2.6  4.4  9.0  9.0 
+```
+
+The current implementation of `optimACDC()` solves this problem using a
+discontinuous function to calculate the sample quantiles - see *Definition 3* 
+of [Hyndman & Fan (1996)](http://www.jstor.org/stable/2684934), which is
+implemented in the function `quantile()` setting `type = 3`. This function was
+chosen among an universe of three functions because it produced the best break
+points for a set of covariates with different distributions, and it was the only
+one to produce the exact break points for a uniformly distributed variable. For
+the example above, the quantiles now honour the fact that the covariate is
+numeric but discontinuous:
+
+```r
+> breaks <- lapply(covars, quantile, probs, na.rm = TRUE, type = 3)
+> breaks
+$x
+  0%  20%  40%  60%  80% 100% 
+   1    1    2    4    9    9 
+```
+
+The example shows that the *equal-area* method can yield duplicated break points
+for the sampling strata. This is an inherent feature that comes from the concept
+of sample quantiles. A break point will always be repeated if that value has a
+relatively high frequency distribution in the population of covariate values.
+This is what happens with the values 1 and 9. Note that this also is due to the
+large number of sampling strata into which we want to split the covariate. The
+problem disappears if we use a smaller number of sampling strata:
+
+```r
+> n.pts <- 3
+> covars <- data.frame(x = c(1, 5, 1, 3, 4, 1, 2, 3, 2, 1, 8, 9, 9, 9, 9))
+> probs <- seq(0, 1, length.out = n.pts + 1)
+> lapply(covars, quantile, probs, na.rm = TRUE, type = 3)
+$x
+       0% 33.33333% 66.66667%      100% 
+        1         2         5         9 
+```
+
+The conclusion is that we cannot define five sampling strata for our covariate.
+But since we want to have five sample points and match the marginal distribution
+of the covariate, the distribution of the number of points per strata will have
+to be non-uniform. We count the number of points of the covariate that fall in
+each of the new strata and divide it by the total number of points:
+
+```r
+> n.pts <- 5
+> breaks <- unique(breaks[[1]])
+> breaks
+[1] 1 2 4 9
+> n_cov <- ncol(covars)
+> count <- lapply(1:n_cov, function (i)
++ hist(covars[, i], breaks, plot = FALSE)$counts)
+> count <- lapply(1:n_cov, function(i) count[[i]] / sum(count[[i]]) * n.pts)
+> count[[1]]
+[1] 2 1 2
+```
+
+The *equal-range* method has the same limitations of the *equal-area* method
+when the numeric covariate is discontinuous. The lower and upper limits of the
+various sampling strata can assume values that do not exist in the population of
+covariate values. It also can create sampling strata covering a range of values
+that do not exist in the covariate. We see both problems bellow:
+
+```r
+> n_cov <- ncol(covars)
+> breaks <- lapply(1:n_cov, function(i)
++   seq(min(covars[, i]), max(covars[, i]), length.out = n.pts + 1))
+> breaks[[1]]
+[1] 1.0 2.6 4.2 5.8 7.4 9.0
+> count <- lapply(1:n_cov, function (i)
++ hist(covars[, i], breaks[[i]], plot = FALSE)$counts)
+> count[[1]]
+[1] 6 3 1 0 5
+```
+
+The calculated break points are clearly inappropriate for our covariate. The
+fourth strata covers a range of values that do not exist in the covariate. The
+current version of `optimACDC()` solves this problem merging the empty sampling
+strata with the closest non-empty sampling strata. Next we check for duplicated
+break points using the same approach used with the *equal-area* method.
+Duplicates are likely to appear when the number of sample points is large
+relative to the number unique values in the covariate.
+
+```r
+> require(SpatialTools)
+> d <- lapply(1:n_cov, function(i)
++ SpatialTools::dist2(matrix(breaks[[i]]), matrix(covars[, i])))
+> d <- lapply(1:n_cov, function(i) apply(d[[i]], 1, which.min))
+> breaks <- lapply(1:n_cov, function(i) breaks[[i]] <- covars[d[[i]], i])
+> breaks <- lapply(breaks, unique)
+> breaks[[1]]
+[1] 1 3 4 5 8 9
+```
+
+We use the same strategy used with the *equal-area* method to redistribute the
+sample points among the sampling strata. The resulting distribution is
+exactly proportional to the existing distribution of points per strata in the
+population of covariate values. Non-integer values are commonly obtained:
+
+```r
+> count <- lapply(1:n_cov, function (i)
++   hist(covars[, i], breaks[[i]], plot = FALSE)$counts)
+> count <- lapply(1:n_cov, function(i)
++   count[[i]] / sum(count[[i]]) * n.pts)
+> count[[1]]
+[1] 2.6666667 0.3333333 0.3333333 0.3333333 1.3333333
+```
+
+The practical consequence of the modifications that we have implemented in
+`optimACDC()` is that, given a set of covariates, each one of them will have a
+different number of sampling strata. This will ultimately depend on the shape
+of their frequency distribution, and on the relation between the number of
+sample points and unique values in the covariate. In theoretical terms, this
+means that the analogy of the method of M&M with the Latin square (or hypercube)
+is incorrect. This is important because it emphasizes the fact that
+`optimACDC()` (and the method of M&M) is a non-probability purposive sampling
+method.
+
+### Geographic coordinates
+
+The geographic coordinates of the prediction grid can be used as numeric
+covariates to optimize a sample pattern. This is useful if the geographic
+coordinates are used as covariates to calibrate the trend model. This is done in
+`optimACDC()` setting `use.coords = TRUE`. To use only the geographic 
+coordinates as covariates, then they should be passed to `optimACDC()` using the
+argument `covars`.
+
+One must bear in mind that using the geographic coordinates as covariates is
+not the same as optimizing a sample pattern by minimizing the mean squared
+shortest distance (**MSSD**) between sample points and prediction points.
+**ACDC** (and the method of M&M) is an optimizing criterion concerned solely
+with the marginal distribution of the covariates, while **MSSD** looks at the
+joint distribution of the geographic coordinates. The first aims at trend
+estimation, the second at spatial interpolation. Using **ACDC** (and the method
+of M&M) with the geographic coordinates to optimize a sample pattern for spatial
+interpolation is sub-optimal because, placing all sample points in the diagonal
+of the study area is accepted as an optimal solution.
+
+We recommend that the geographic coordinates be used to optimize the sample
+pattern if and only if they are to be used for trend estimation. This is useful
+if there is an evident geographic trend in the data. `optimMSSD()` should be 
+used to optimize a sample pattern for spatial interpolation.
+
+## Factor covariates
+
+The current version of `optimACDC()` does not handle numeric and factor
+covariates simultaneously for the optimization. This can be seen as a weakness,
+since the method of M&M, as implemented in the R-package ***clhs***, handles
+both numeric and factor covariates simultaneously. We explain bellow the reasons
+for the change.
+
+### Association and correlation measures
+
+Sampling for trend estimation is formulated here as a multi-objective 
+optimization problem (MOOP). The method of M&M defined three objective 
+functions. The first ($O_1$) was defined so that the sample would reproduce the 
+marginal distribution of the numeric covariates. The second ($O_2$) was
+concerned with the factor covariates. The goal was to obtain a sample that would
+reproduce the class proportions. The third ($O_3$) was defined to guarantee that
+the linear structure present in the population would be reproduced in the 
+sample. The Pearson's correlation coefficient was used as a measure of this
+linear structure.
+
+Two of the objective functions ($O_1$ and $O_3$) were designed to guarantee that
+the sample would reproduce the features of the numeric covariates. This means
+that the method inherently gives a larger weight to the numeric covariates. One
+could view this feature as a positive one, claiming that the numeric
+covariates have more information than the factor covariates. We disagree with
+this view because *information content* is not necessarily related with
+*explanatory power*: the factor covariates might be better predictors than the
+numeric ones. As such, we understand that this feature is a bias towards the
+numeric covariates. This bias cannot be corrected by simply choosing the proper
+weights because the behaviour of each of the objective functions is largely
+unknown.
+
+One alternative is to use a measure of association among factor covariates as
+the linear correlation is used for the numeric covariates. The Cramér's $v$ can
+be used for this purpose. The Cramér's $v$ is a measure of association between
+factor covariates that ranges from 0 to 1: the closer to 1, the larger the
+association between two factor covariates. The Cramér's $v$ is given by (Cramér,
+1946):
+
+$$
+v = \sqrt{\frac{\chi^{2} / n}{min(c - 1, r - 1)}}
+$$
+
+where $r$ and $c$ are the number of rows and columns of the contingency table,
+$n$ is the number of observations, and $\chi^{2}$ is the chi-squared statistic 
+(Everitt, 2006):
+
+$$
+\chi^{2} = \sum_{i = 1}^{r} \sum_{j = 1}^{c} (O_i - E_i)^2 / E_i
+$$
+
+where $O_i$ and $E_i$ are the observed and expected frequency, respectively.
+
+We do not have a solution to measure the association/correlation among the
+numeric and factor covariates. As such, if the set of covariates has any factor
+covariate, we choose to transform any numeric covariate into a factor covariate, 
+and use the Cramér's $v$ as a measure of association. The numeric covariates are
+categorized using the sampling strata defined using one of the methods described 
+above (equal-area or equal-range). If all covariates are numeric, then we use
+the standard Pearson's correlation coefficient. This is not without losses. 
+While the Pearson's correlation coefficient shows the degree and direction of
+the association between two covariates (negative or positive), the Cramér's *v*
+only measures the degree (weak or strong).
+
+# Objective functions
+
+We have implemented the method of M&M in `optimACDC()` with a few modifications 
+to correct its weaknesses. We saw that the number of sampling strata cannot be
+equal to the number of sample points. The bias towards numeric covariates was
+corrected transforming them to factor covariates when both types of covariates
+are available. The association measure used in this case is the Cramér's $v$. 
+Finally, we chose to name the *new* method based solely on the objective 
+functions that are compose it: an association/correlation measure and the 
+marginal distribution of the covariates, **ACDC**.
+
+The method of M&M was composed by the weighted sum of three objective functions.
+**ACDC**, instead, is composed by the weighted sum of only two objective
+functions. The first uses a measure of association ($f_{1\text{ factor}}$) or
+correlation ($f_{1\text{ numeric}}$), while the second is concerned with the
+marginal distribution ($f_{2\text{ numeric}}$ or $f_{2\text{ factor}}$) of the
+covariates, depending whether they are of type numeric or factor.
+
+The first objective function is defined for numeric covariates as follows:
+
+$$
+f_{1\text{ numeric}} = || \mathbf{P} - \mathbf{R} ||_{p = \infty}
+                     = \sum_{i = 1}^{k} \sum_{j = 1}^{k} |\rho_{ij} - r_{ij}|
+$$
+
+where $\rho_{ij}$ and $r_{ij}$ are the population and sample linear correlations
+at the $i\text{th}$ row and $j\text{th}$ column of the $k\text{-dimensional}$ 
+population and sample linear correlation matrices $\mathbf{P}$ and $\mathbf{R}$,
+$k$ being the number of covariates. For factor covariates, the first objective
+function is defined as follows:
+
+$$
+f_{1\text{ factor}} = || \Phi - \mathbf{V} ||_{p = \infty}
+                    = \sum_{i = 1}^{k} \sum_{j = 1}^{k} |\phi_{ij} - v_{ij}|
+$$
+
+where $\phi_{ij}$ and $v_{ij}$ are the population and sample associations
+at the $i\text{th}$ row and $j\text{th}$ column of the $k\text{-dimensional}$
+population and sample association matrices $\Phi$ and $\mathbf{V}$. The goal of
+the first objective function is to minimize the max norm (element-wise norm with 
+$p = \infty$) of the difference between the matrices of population and sample
+association/correlation measures.
+
+The goal of the second objective function is to minimize the sum of the sum-norm
+(or 1-norm) of the difference between the covariate-wise vectors of population
+and sample marginal distributions. It is defined as follows for numeric 
+covariates:
+
+$$
+f_{2\text{ numeric}} = || \mathbf{\eta} - \mathbf{\psi}  ||_{1}
+                     = \sum_{i = 1}^{k} \sum_{j = 1}^{s_i}
+                      \left|\eta_{ij} - \psi_{ij} \right|
+$$
+
+where $\eta_{ij}$ and $\psi_{ij}$ are the proportion (in percentage) of sample
+and population points that fall in the *j*th sampling strata of the *i*th
+covariate, $s$ being the number of sampling strata of the *i*th covariate.
+$\mathbf{\eta}$ and $\mathbf{\psi}$ are the population and sample vectors of 
+sum-norms. For factor covariates, the second objective function is defined as
+follows:
+
+$$
+f_{2\text{ factor}} = || \mathbf{\pi} - \mathbf{\gamma} ||_{1}
+                    = \sum_{i = 1}^{k} \sum_{j = 1}^{c_i}
+                      \left|\pi_{ij} - \gamma_{ij} \right|
+$$
+
+where $\pi_{ij}$ and $\gamma_{ij}$ are the proportion (in percentage) of sample
+and population points that fall in the *j*th class of the *i*th covariate, $c$
+being the number of classes of the *i*th covariate. $\mathbf{\pi}$ and 
+$\mathbf{\gamma}$ are the population and sample vectors of sum-norms. Note that
+we work with the vector of the marginal distribution of each covariate 
+separately because the number of sampling strata (numeric) or classes (factor)
+can be different for each covariate. Because this results in a non-uniform
+distribution of points per sampling strata and class, we use the proportion of
+points per sampling strata, instead of the number of points, as a measure of 
+coverage of the marginal distribution of the numeric covariates. The values are 
+multiplied by 100 for numerical stability.
+
+We did not make any test yet to check if there is any negative consequence
+deriving from our choices. If any, they might become less important as the
+number of sample points increases. Besides, we understand that correcting the
+bias towards the numeric covariates is a fundamental step to built a more robust
+sampling method.
+
+## Utopia and nadir points
+
+In theory, the utopia ($\mathbf{f}^{\circ}$) and nadir 
+($\mathbf{f}^{\text{max}}$) points of **ACDC** can be calculated exactly. This
+is only partially true. We can calculate exactly the minimum and maximum
+absolute values of the first objective function that composes **ACDC**, which
+uses a measure of association/correlation among the covariates. For both numeric
+and factor covariates, the utopia point is exactly
+
+$$
+\begin{align*}
+ f^{\circ}_{1\text{ numeric}} & = 0 \\
+ f^{\circ}_{1\text{ factor}}  & = 0
+\end{align*}
+$$
+
+which means that the population association/correlation matrix is equal to the
+sample association/correlation matrix. The nadir point is
+
+$$
+\begin{align*} 
+ f^{\text{max}}_{1\text{ numeric}} & = 
+    2k + || \mathbf{P} - \mathbf{I} ||_{p = \infty} \\
+ f^{\text{max}}_{1\text{ factor}}  & = 
+    2k - || \mathbf{\Phi} - \mathbf{I} ||_{p = \infty}
+\end{align*} 
+$$
+
+where $\mathbf{I}$ is the identity matrix, and $2k$ is the number of non-zero 
+(nnz) entries in $\mathbf{\Delta}$, the matrix of the differences between the
+population and sample matrix of association/correlation measures. 
+$f^{\text{max}}_{1\text{ factor}}$ subtracts the right-hand term from the 
+left-hand term to account for the fact that the Cramér's $v$ ranges from 0 to
++1, while the Pearson's $r$ ranges from -1 to +1.
+
+The utopia point of the second objective function is exactly
+
+$$
+\begin{align*}
+ f^{\circ}_{2\text{ numeric}} & = 0 \\
+ f^{\circ}_{2\text{ factor}}  & = 0
+\end{align*}
+$$
+
+which means that the sample reproduces exactly the marginal distribution of the
+covariates. The nadir point can only be calculated when the number of covariates
+is equal to one, which is useless because `optimACDC()` requires at least two
+covariates. For a single covariate, the nadir point is:
+
+$$
+\begin{align*}
+ f^{\text{max}}_{2\text{ numeric}} & = 2 \times (100 - min(\mathbf{\eta})) \\
+ f^{\text{max}}_{2\text{ factor}}  & = 2 \times (100 - min(\mathbf{\pi}))
+\end{align*}
+$$
+
+where $\mathbf{\eta}$ and $\mathbf{\pi}$ are the vectors of the marginal 
+distribution of the covariate expressed in terms of proportion (in percentage) 
+of population points per sampling strata and class, respectively. The equations
+above indicate that the worst case scenario is to place all sample points in the
+sampling strata or class in which we expect to have the smallest number of
+sample points. If we were working with a true Latin hypercube we would be able 
+to extend the equations to all covariates and calculate the exact value of the 
+nadir point. But because we are ignorant about all possible combinations of 
+values among covariates, specially because many of combinations are impossible
+due to the constrained nature of the data, an estimate of the nadir point would 
+be highly uncertain. The alternative is to estimate the nadir point using expert 
+knowledge or simulations, or use the Pareto maximum.
