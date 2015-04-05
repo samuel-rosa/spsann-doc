@@ -14,7 +14,7 @@ output:
 
 It is long known that the variogram is central to geostatistics (Matheron1969;
 WebsterEtAl2007). As such, several methods have been proposed to create
-sample patterns to estimate the variogram efficiently (deGruijterEtAl2006;
+sample configurations to estimate the variogram efficiently (deGruijterEtAl2006;
 Mueller2007; WebsterEtAl2013). The first methods were based on estimation of the
 variogram using the classic method of moments (BreslerEtAl1982; Russo1984;
 WarrickEtAl1987). Modern methods focus on the robust maximum likelihood
@@ -29,27 +29,27 @@ interval of possible values for its parameters.
 
 Although theoretically sound, the Bayesian approach does is sub-optimal when we
 are very uncertain about the variogram model parameters. The less we know, the
-less efficient a Bayesian sample pattern is in estimating the true variogram
+less efficient a Bayesian sample configuration is in estimating the true variogram
 model (ZhuEtAl2005). It is a quite efficient approach when we are uncertain only
 about the nugget and/or the partial sill. But when we are uncertain about the
 range parameter or about the three parameters altogether, its efficiency can be
-similar to that of a regularly spaced sample pattern (ZhuEtAl2005).
+similar to that of a regularly spaced sample configuration (ZhuEtAl2005).
 
 An adaptive Bayesian approach was suggested as an alternative to overcome the
 weaknesses of the single-phase Bayesian approach (MarchantEtAl2006). In adaptive
 Bayesian sampling one starts with a reconnaissance survey and, as knowledge
-about the environmental variable is constructed, the sample pattern is adapted
+about the spatial variable is constructed, the sample configuration is adapted
 iteratively to maximize its efficiency given the chosen optimizing criterion.
 Alike its single-phase counterpart, the adaptive Bayesian approach is 
 computationally intensive and requires a minimum previous knowledge about the
 form of the variogram model.
 
 Practical implementation of the Bayesian methods mentioned above is unrealistic
-if the sample pattern needs to be optimized for more than a couple of 
-environmental variables. Also, due to several reasons, we usually are unable to
+if the sample configuration needs to be optimized for more than a couple of 
+spatial variables. Also, due to several reasons, we usually are unable to
 specify the variogram model and the respective ranges of possible parameters. As
 such, we propose a new method that avoids complicated and time-consuming
-calculations. The optimization of the sample pattern relies on the main
+calculations. The optimization of the sample configuration relies on the main
 assumption that we are completely ignorant about the spatial variation of the
 environmental variable.
 
@@ -59,7 +59,7 @@ Sampling to identify the variogram model and estimate its parameters should
 concentrate on the relevant pair-wise distances, that is, the relevant
 spatial scales on which environmental variables vary (Lark2011). MuellerEtAl1999
 observed that the distribution of pair-wise distances of the
-best sample patterns had a mode close to the range parameter of the variogram
+best sample configurations had a mode close to the range parameter of the variogram
 model. Lark2002 showed that when the range of spatial dependency is short,
 the resulting distribution of pair-wise distances is bimodal, with the first
 mode close to zero distance units, and the second mode at about half the maximum
@@ -96,7 +96,7 @@ globally optimal for an infinite set of unknown variogram models.
 At first, the idea of having a uniform distribution of pair-wise distances
 seems to be appropriate, specially when the number of affordable sample points
 is small. Conservative solutions are usually chosen when the amount of resources
-available is limited. The same logic is used to optimize sample patterns to
+available is limited. The same logic is used to optimize sample configurations to
 select between a linear and a non-linear structure to model the deterministic
 part of the spatial variation of an environmental variable. We sample uniformly
 along the marginal distribution of each environmental covariate 
@@ -119,8 +119,8 @@ using all data points, avoiding the need for an *ad hoc* definition of classes
 of pair-wise distances that generally smooth out the structure of the spatial
 process (Lark2000).
 
-Although being an interesting description of a sample pattern, it is known that
-sample patterns with the same distribution of pair-wise distances can have
+Although being an interesting description of a sample configuration, it is known that
+sample configurations with the same distribution of pair-wise distances can have
 completely different spatial configurations (MuellerEtAl1999). This occurs for
 two reasons. First, the distribution of pair-wise distances is an unidimensional
 measure that does not consider the shape and orientation of the spatial domain
@@ -130,14 +130,14 @@ in significantly different estimates of the variogram model parameters if our
 assumption of a constant mean and variance is incorrect.
 
 The way how the location of every sample point is defined has another negative
-consequence. The optimized sample pattern is commonly formed by a single large 
+consequence. The optimized sample configuration is commonly formed by a single large 
 cluster of sample points, with a few points scattered throughout the spatial 
-domain. We say that the sample pattern is highly redundant, that is, poorly
+domain. We say that the sample configuration is highly redundant, that is, poorly
 informative. This is particularly inappropriate for variogram estimation due to 
 the high correlation between the estimates of the variogram model parameters
 (MuellerEtAl1999).
 
-A solution to maximize the amount of information produced by a sample pattern
+A solution to maximize the amount of information produced by a sample configuration
 is to divide the spatial domain into equal-size strata within which we 
 distribute the sample points (PettittEtAl1993; deGruijterEtAl2006). Because
 PettittEtAl1993 also wanted to sample all possibly relevant spatial scales, they
@@ -157,18 +157,18 @@ minimizes or maximizes, being essentially heuristic.
 
 # Points per lag-distance class
 
-We propose a general purpose objective function to optimize sample patterns for
+We propose a general purpose objective function to optimize sample configurations for
 the estimation of variogram parameters when we are ignorant about the spatial
 variation of the environmental variable. In such a scenario, we can only explore
 a distance measure. WarrickEtAl1987 showed that distance-related parameters
 control the spread of points and the coverage of the spatial domain. Many later
 studies that assumed the form of the variogram model to be known observed that
 the range parameter plays a large control of the spatial configuration of the
-sample pattern, specially its clustering degree (MuellerEtAl1999; Lark2002; 
+sample, specially its clustering degree (MuellerEtAl1999; Lark2002; 
 ZhuEtAl2005; Zimmerman2006).
 
 The distribution of pair-wise distances is a useful description of a sample
-pattern. However, its use is rooted on the use of the method-of-moments for
+configuration. However, its use is rooted on the use of the method-of-moments for
 variogram estimation. Instead of point-pairs, maximum likelihood methods
 estimate model parameters using all data points. To maximize the amount of 
 information of the data points, we need every sample point to produce 
@@ -178,14 +178,14 @@ point. We also need to define the possibly relevant spatial scales. The logical
 solution is to explore exponential spacings to enable an accurate estimate of 
 the nugget variance, but also cover the entire variogram space.
 
-The upper limit of the variogram space should be defined as half the the maximum
+The upper limit of the variogram space should be defined as half the maximum
 distance across the spatial domain (TruongEtAl2013). This is because the
 estimates of the variogram for distances larger than half the maximum distance
 across the sampling grid are highly uncertain (Lark2002). The possibly relevant
 spatial scales can be defined exploring the geostatistical concept of 
 lag-distance classes. Using exponential spacings up to half the maximum
 distance across the spatial domain, and defining the location of every sample 
-point relative to every other sample point, will create a sample pattern with 
+point relative to every other sample point, will create a sample configuration with 
 small clusters scattered throughout the spatial domain.
 
 The proposed method is defined by the following objective: having all sample 
@@ -232,7 +232,7 @@ of the lag-distance classes will be as follows:
 
 ## Criteria
 
-The main goal of our method is to produce a sample pattern with a uniform 
+The main goal of our method is to produce a sample configuration with a uniform 
 distribution of the number of points per lad-distance class (**PPL**). This 
 can be achieved in our implementation setting `criterion = "distribution"`. 
 Mathematically speaking, we minimize the sum of differences between a 
@@ -295,7 +295,7 @@ number of points in any of the lags, that is, when:
 ```
 
 This shows that the result of using `criterion = "minimum"` is similar to that 
-of using `criterion = "distribution"`. However, the resulting sample pattern can
+of using `criterion = "distribution"`. However, the resulting sample configuration can
 be significantly different.
 
 We expected to find significant differences in the running time of the algorithm
@@ -316,7 +316,7 @@ corresponds to a *maximization* problem. We solve this inconsistency
 substituting the criterion that has to be maximized by its inverse. For
 convenience we multiply the resulting value by a constant -- the wanted number
 of points or point-pairs per lag. If we are aiming at the number of points per
-lag, the objective function value $f_{points}$ is calculates as follows:
+lag, the objective function value $f_{points}$ is calculated as follows:
 
 $$
 f_{points} = \frac{n}{min(\mathbf{x}) + 1}
@@ -324,7 +324,7 @@ $$
 
 where $n$ is the total number of sample points, and $\mathbf{x}$ is the vector 
 of counts of points per lag-distance class. If we are aiming at the number of
-point-pairs per lag, the objective function value $f_{pairs}$ is calculates as:
+point-pairs per lag, the objective function value $f_{pairs}$ is calculated as:
 
 $$
 f_{pairs} = \frac{l}{min(\mathbf{x}) + 1}
@@ -367,7 +367,8 @@ influence of the size of the various lag-distance classes.
 
 A third element that must be considered is the size and shape of the spatial 
 domain. First, because it is intimately related with the definition of the lags
-and the amount of jittering allowed for every point. Second, because a sample 
+and the amount of random perturbation (jittering) allowed for every point. 
+Second, because a sample 
 can only be defined as large or small relative to the spatial domain. The third
 influence of the spatial domain appears when the ratio between its major and 
 minor axes is considerably large. This restricts the set of candidate locations
@@ -406,48 +407,43 @@ candi <- coordinates(candi)
 candi <- matrix(cbind(1:nrow(candi), candi), ncol = 3)
 ```
 
-We now set the arguments that have to be passed to the function `optimPPL()`.
-The maximum jittering in the x and y coordinates is defined using the bounding
-box of the spatial domain. This means that the values attributed to each 
-coordinate are not necessarily the same. The minimum jittering for both
-coordinate is defined as equal to the grid spacing. The cut-off is set to half 
-the diagonal of the bounding box of the spatial domain.
+We now set the arguments that control the amount of random perturbation in the 
+x and y coordinates. The maximum jittering in the x and y coordinates, given 
+bellow by `x.max` and `y.max`, is defined using the bounding box of the spatial
+domain. This means that the values attributed to each coordinate are not 
+necessarily the same. The minimum jittering for both coordinates (`x.min` and 
+`y.min`) is defined as equal to the grid spacing (40 m). The lag-distance 
+cut-off (`cutoff`) is set to half the diagonal of the bounding box of the
+spatial domain.
 
 ```r
-# Other settings
+# Jittering settings
 x.max <- diff(bbox(boundary)[1, ])
 y.max <- diff(bbox(boundary)[2, ])
-x.min <- 40
-y.min <- 40
 cutoff <- sqrt((x.max * x.max) + (y.max * y.max)) / 2
-iterations <- 1000
-points <- 100
-lags <- 7
-lags.base <- 2
-criterion <- "distribution"
-lags.type <- "exponential"
-pairs <- FALSE
 ```
 
-We use seven exponentially spaced lag-distance classes, sequentially defined as
-half the immediately larger preceding lag. Our goal is to have a uniform
-distribution of points per lag and use 1000 iterations to let the algorithm
-achieve it. We define the random seed so that we can reproduce the results.
+We use seven exponentially spaced lag-distance classes (`lags.type` and `lags`),
+sequentially defined as half the immediately larger preceding lag (`lags.base`).
+Our goal is to have a uniform distribution (`criterion`) of points per lag and 
+use 1000 `iterations` to let the algorithm achieve it. We define the random seed
+so that we can reproduce the results. The starting system configuration is
+composed by 100 randomly located `points`.
 
 ```r
 # Run the algorithm
 set.seed(2001)
-res <- optimPPL(points = points, candi = candi, lags = lags, pairs = pairs,
-                lags.base = lags.base, criterion = criterion, cutoff = cutoff,
-                lags.type = lags.type,  x.max = x.max, x.min = x.min, 
-                y.max = y.max, y.min = y.min, boundary = boundary,
-                iterations = iterations)
+res <- optimPPL(points = 100, candi = candi, lags = 7, pairs = FALSE,
+                lags.base = 2, criterion = "distribution", cutoff = cutoff,
+                lags.type = "exponential", x.max = x.max, x.min = 40, 
+                y.max = y.max, y.min = 40, boundary = boundary,
+                iterations = 1000)
 ```
 
 There are two other important functions implemented in the ***spsann*** package:
 `countPPL()`, which counts the number of points (or point-pairs) per lag, and
 `objPPL()`, which computes the objective function value for a given sample
-pattern. We see that the number of iterations was not enough to obtain an
+configuration. We see that the number of iterations was not enough to obtain an
 uniform distribution of points per lag. There are only 65 points contributing
 to the first lag class. The objective function value is somewhat high (65)
 since we expected it to be close to zero.
