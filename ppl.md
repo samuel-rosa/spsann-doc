@@ -15,11 +15,11 @@ output:
 It is long known that the variogram is central to geostatistics (Matheron1969;
 WebsterEtAl2007). As such, several methods have been proposed to create
 sample configurations to estimate the variogram efficiently (deGruijterEtAl2006;
-Mueller2007; WebsterEtAl2013). The first methods were based on estimation of the
-variogram using the classic method of moments (BreslerEtAl1982; Russo1984;
+Mueller2007; WebsterEtAl2013). The first methods were based on variogram 
+estimation using the classic method of moments (BreslerEtAl1982; Russo1984;
 WarrickEtAl1987). Modern methods focus on the robust maximum likelihood
 estimators of the variogram (Lark2002; Zimmerman2006; Mueller2007). The later
-usually require some knowledge about the variogram model.
+usually require some prior knowledge about the variogram model.
 
 More recently a Bayesian approach has been suggested to enable taking into
 account the uncertainty of the estimated variogram model parameters when
@@ -27,11 +27,12 @@ selecting sample locations (ZhuEtAl2005; DiggleEtAl2006). This approach requires
 the *a priori* specification of the spatial correlation function and the
 interval of possible values for its parameters.
 
-Although theoretically sound, the Bayesian approach does is sub-optimal when we
+Although theoretically sound, the Bayesian approach is sub-optimal when we
 are very uncertain about the variogram model parameters. The less we know, the
-less efficient a Bayesian sample configuration is in estimating the true variogram
-model (ZhuEtAl2005). It is a quite efficient approach when we are uncertain only
-about the nugget and/or the partial sill. But when we are uncertain about the
+less efficient a Bayesian sample configuration is in estimating the true 
+variogram model (ZhuEtAl2005). It is a quite efficient approach when we are 
+uncertain only about the nugget and/or the partial sill. But when we are 
+uncertain about the
 range parameter or about the three parameters altogether, its efficiency can be
 similar to that of a regularly spaced sample configuration (ZhuEtAl2005).
 
@@ -44,62 +45,62 @@ Alike its single-phase counterpart, the adaptive Bayesian approach is
 computationally intensive and requires a minimum previous knowledge about the
 form of the variogram model.
 
-Practical implementation of the Bayesian methods mentioned above is unrealistic
+Practical implementation of the Bayesian methods mentioned above is difficult
 if the sample configuration needs to be optimized for more than a couple of 
-spatial variables. Also, due to several reasons, we usually are unable to
-specify the variogram model and the respective ranges of possible parameters. As
+spatial variables. Also, due to several reasons, we usually are unable or 
+uncomfortable to specify the variogram model and the respective ranges of 
+possible parameters. As
 such, we propose a new method that avoids complicated and time-consuming
 calculations. The optimization of the sample configuration relies on the main
 assumption that we are completely ignorant about the spatial variation of the
-environmental variable.
+spatial variables.
 
-# Relevant spatial scales
+# Relevant pairwise distances
 
 Sampling to identify the variogram model and estimate its parameters should
-concentrate on the relevant pair-wise distances, that is, the relevant
-spatial scales on which environmental variables vary (Lark2011). MuellerEtAl1999
-observed that the distribution of pair-wise distances of the
-best sample configurations had a mode close to the range parameter of the variogram
-model. Lark2002 showed that when the range of spatial dependency is short,
-the resulting distribution of pair-wise distances is bimodal, with the first
-mode close to zero distance units, and the second mode at about half the maximum
+concentrate on the relevant pairwise distances. MuellerEtAl1999
+observed that the distribution of pairwise distances of the best sample 
+configurations had a mode close to the range parameter of the variogram model. 
+Lark2002 showed that when the range of spatial dependency is short, the 
+resulting distribution of pairwise distances is bimodal, with the first mode 
+close to zero distance units, and the second mode at about half the maximum 
 distance across the spatial domain.
 
-The extensive literature on sampling for variogram estimation, including the 
+The literature on sampling for variogram estimation, including the 
 studies cited above, provides the basis for the definition of a few 
 rules-of-thumb. In general, if we know that a significant part of the variation
 is structured at short distances, then several clusters of sample points should
 be placed throughout the spatial domain. The size of the clusters, i.e. the
-number of sample points in each cluster, depends on the degree of spatial
-dependence of the environmental variable. With smaller spatial dependency,
+number of sample points in each cluster, depends on the degree of 
+autocorrelation of the spatial variable. With smaller spatial dependency,
 the sample points should be assigned to a few large clusters to obtain a
 reliable estimate of the nugget variance. Smaller clusters can be used when the
 degree of spatial dependency is larger. This will yield a more homogeneous
 coverage of the spatial domain, although this is not necessary for variogram 
-estimation if we assume a constant mean and variance. If both the degree and
-range of spatial dependency are large, then sample points can be spread
-throughout the spatial domain, but retaining a few clusters to estimate the
-nugget variance.
+estimation if we assume a constant spatial mean and variance. If both the 
+degree and range of spatial dependency are large, then sample points can be 
+spread throughout the spatial domain, but retaining a few clusters to estimate
+the nugget variance.
 
 ## A conservative solution
 
-How do we concentrate on the relevant spatial scales if we are completely
-ignorant about the spatial variation of the environmental variable?
+How do we concentrate on the relevant pairwise distances if we are completely
+ignorant about the variation of the spatial variable?
 BreslerEtAl1982, Russo1984, and WarrickEtAl1987 proposed the use of a general
 purpose, *conservative solution*. According to WarrickEtAl1987, the location of
 the sample points should be determined as to match a uniform frequency 
-distribution of pair-wise distances. In other words, to cover uniformly the
+distribution of pairwise distances. In other words, to cover uniformly the
 variogram space. Being a conservative solution, it was implicitly sub-optimal
 for a given variogram model (MuellerEtAl1999; Lark2002), but expected to be
 globally optimal for an infinite set of unknown variogram models. 
 
-At first, the idea of having a uniform distribution of pair-wise distances
+At first, the idea of having a uniform distribution of pairwise distances
 seems to be appropriate, specially when the number of affordable sample points
-is small. Conservative solutions are usually chosen when the amount of resources
-available is limited. The same logic is used to optimize sample configurations to
-select between a linear and a non-linear structure to model the deterministic
-part of the spatial variation of an environmental variable. We sample uniformly
-along the marginal distribution of each environmental covariate 
+is small. Conservative solutions are usually chosen when the resources
+available are limited. The same logic is used to optimize sample configurations
+to select between a linear and a non-linear structure to model the deterministic
+part of the spatial variation of a spatial variable. We sample uniformly
+along the marginal distribution of each spatial covariate 
 (MinasnyEtAl2006b).
 
 ### Critiques and solutions
@@ -113,38 +114,42 @@ A common critique to the ideas of BreslerEtAl1982, Russo1984, and
 WarrickEtAl1987 is that they were rooted on the use of the method-of-moments
 to fit a continuous function to the binned empirical variogram. It is known that
 the estimates of the method-of-moments are affected by the correlation between
-the sequence of classes of pair-wise distances and that more robust methods
+the sequence of classes of pairwise distances and that more robust methods
 exist (DiggleEtAl2002). Maximum likelihood methods estimate model parameters
 using all data points, avoiding the need for an *ad hoc* definition of classes
-of pair-wise distances that generally smooth out the structure of the spatial
+of pairwise distances that generally smooth out the structure of the spatial
 process (Lark2000).
 
-Although being an interesting description of a sample configuration, it is known that
-sample configurations with the same distribution of pair-wise distances can have
+Although being an interesting description of a sample configuration, it is 
+known that
+sample configurations with the same distribution of pairwise distances can have
 completely different spatial configurations (MuellerEtAl1999). This occurs for
-two reasons. First, the distribution of pair-wise distances is an unidimensional
+two reasons. First, the distribution of pairwise distances is an unidimensional
 measure that does not consider the shape and orientation of the spatial domain
 being sampled. Second, the position of every sample point is defined relative to
 only a fraction of the whole set of sample points. This can ultimately result
 in significantly different estimates of the variogram model parameters if our
-assumption of a constant mean and variance is incorrect.
+assumption of a constant spatial mean and variance is incorrect.
 
 The way how the location of every sample point is defined has another negative
-consequence. The optimized sample configuration is commonly formed by a single large 
+consequence. The optimized sample configuration is commonly formed by a single 
+large 
 cluster of sample points, with a few points scattered throughout the spatial 
-domain. We say that the sample configuration is highly redundant, that is, poorly
+domain. We say that the sample configuration is highly redundant, that is, 
+poorly
 informative. This is particularly inappropriate for variogram estimation due to 
 the high correlation between the estimates of the variogram model parameters
 (MuellerEtAl1999).
 
-A solution to maximize the amount of information produced by a sample configuration
+A solution to maximize the amount of information produced by a sample 
+configuration
 is to divide the spatial domain into equal-size strata within which we 
 distribute the sample points (PettittEtAl1993; deGruijterEtAl2006). Because
 PettittEtAl1993 also wanted to sample all possibly relevant spatial scales, they
 distributed the sample points along transects separated by exponentially growing
 distances (0.25, 1, 5, 25, and 125 metres). This is a safe sampling solution
-when no information on the magnitude or scale of variation of a environmental
-variable is available.
+when no information on the magnitude or scale of variation of the spatial
+variables is available.
 
 The method proposed by PettittEtAl1993 has another important feature. The use of
 exponential distances yields a cluster of points separated by short distances
@@ -157,9 +162,10 @@ minimizes or maximizes, being essentially heuristic.
 
 # Points per lag-distance class
 
-We propose a general purpose objective function to optimize sample configurations for
+We propose a general purpose objective function to optimize sample 
+configurations for
 the estimation of variogram parameters when we are ignorant about the spatial
-variation of the environmental variable. In such a scenario, we can only explore
+variation of the spatial variables. In such a scenario, we can only explore
 a distance measure. WarrickEtAl1987 showed that distance-related parameters
 control the spread of points and the coverage of the spatial domain. Many later
 studies that assumed the form of the variogram model to be known observed that
@@ -167,13 +173,13 @@ the range parameter plays a large control of the spatial configuration of the
 sample, specially its clustering degree (MuellerEtAl1999; Lark2002; 
 ZhuEtAl2005; Zimmerman2006).
 
-The distribution of pair-wise distances is a useful description of a sample
-configuration. However, its use is rooted on the use of the method-of-moments for
-variogram estimation. Instead of point-pairs, maximum likelihood methods
+The distribution of pairwise distances is a useful description of a sample
+configuration. However, its use is rooted on the use of the method-of-moments 
+for variogram estimation. Instead of point-pairs, maximum likelihood methods
 estimate model parameters using all data points. To maximize the amount of 
 information of the data points, we need every sample point to produce 
 information for every possibly relevant spatial scale. As such, we need the
-location of every sample point to be defined relative to every other sample
+location of each sample point to be defined relative to every other sample
 point. We also need to define the possibly relevant spatial scales. The logical 
 solution is to explore exponential spacings to enable an accurate estimate of 
 the nugget variance, but also cover the entire variogram space.
@@ -190,9 +196,10 @@ small clusters scattered throughout the spatial domain.
 
 The proposed method is defined by the following objective: having all sample 
 points contributing to all possibly relevant spatial scales. The method is
-implemented in the function `optimPPL()` of the ***spsann*** package. The method
+implemented in the function `optimPPL()` of the R package ***spsann***. The 
+method
 proposed by WarrickEtAl1987 is implemented as well for comparison purposes, and
-can be used setting `pairs = FALSE`. We now describe the definitions used in
+can be used setting `pairs = TRUE`. We now describe the definitions used in
 the current implementation.
 
 ## Distances
@@ -212,7 +219,8 @@ choice between one and another is made using the argument `lags.type`.
 Uniformly spaced lags are used setting `lags.type = "equidistant"`. They are
 created by simply dividing the interval from 0.0001 up to the value passed to
 the argument `cutoff` by the required number of lags. The minimum value of 
-0.0001 guarantees that a point does not form a pair with itself. The argument
+0.0001 guarantees that a point does not form a pair with itself when we compute 
+pairwise distances. The argument
 `cutoff` corresponds to the maximum separation distance up to which the 
 lag-distance classes are defined. We recommend the cut-off to be set to half the 
 maximum distance across the spatial domain.
@@ -226,8 +234,11 @@ immediately preceding larger lag. If `cutoff = 100` and `lags = 4`, the limits
 of the lag-distance classes will be as follows:
 
 ```r
-> c(0.0001, rev(100 / (2 ^ c(1:4))))
-[1]  0.0001  6.2500 12.5000 25.0000 50.0000
+lags.base <- 2
+lags <- 4
+idx <- lags.base ^ c(1:lags - 1)
+cutoff <- 100
+c(0.0001, rev(cutoff / idx))
 ```
 
 ## Criteria
@@ -241,49 +252,49 @@ point-pairs, if `pairs = TRUE`) per lag-distance class. Consider that we aim at
 having the following distribution of points per lag:
 
 ```r
-> goal <- c(10, 10, 10, 10, 10)
+goal <- c(10, 10, 10, 10, 10)
 ```
 
 and that the observed distribution of points per lag is as follows:
 
 ```r
-> obs <- c(1, 2, 5, 10, 10)
+obs <- c(2, 2, 5, 10, 10)
 ```
 
 The criterion value is:
 
 ```r
-> sum(goal - obs)
-[1] 22
+sum(goal - obs)
+[1] 21
 ```
 
 The objective of the algorithm is, at each iteration, to match the two 
 distributions, that is:
 
 ```r
-> obs <- c(10, 10, 10, 10, 10)
-> sum(goal - obs)
+obs <- c(10, 10, 10, 10, 10)
+sum(goal - obs)
 [1] 0
 
 ```
 
 This criterion is of the same type as that proposed by WarrickEtAl1987. However,
-the same objective can be achieved using another criterion, possibly less 
+the same goal can be achieved using another criterion, possibly less 
 computationally demanding. We define it as maximizing the minimum number of
 points (or point-pairs) observed over all lag-distance classes. It is used
 setting `criterion = "minimum"`. Consider that we observe the following
 distribution of points per lag in the first iteration:
 
 ```r
-> obs <- c(1, 2, 5, 10, 10)
+obs <- c(2, 3, 5, 10, 10)
 ```
 
 The objective in the second iteration will be to increase the number of points
-in the first lag ($n = 1$). Consider that we then have the following resulting
+in the first lag ($n = 2$). Consider that we then have the following resulting
 distribution:
 
 ```r
-> obs <- c(5, 2, 5, 10, 10)
+obs <- c(5, 2, 5, 10, 10)
 ```
 
 Now the objective will be to increase the number of points in the second lag
@@ -291,11 +302,12 @@ Now the objective will be to increase the number of points in the second lag
 number of points in any of the lags, that is, when:
 
 ```r
-> obs <- c(10, 10, 10, 10, 10)
+obs <- c(10, 10, 10, 10, 10)
 ```
 
 This shows that the result of using `criterion = "minimum"` is similar to that 
-of using `criterion = "distribution"`. However, the resulting sample configuration can
+of using `criterion = "distribution"`. However, the resulting sample 
+configuration can
 be significantly different.
 
 We expected to find significant differences in the running time of the algorithm
