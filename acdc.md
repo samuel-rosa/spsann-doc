@@ -8,31 +8,28 @@ output:
 ---
 
 The objective function **ACDC** was designed to optimize sample patterns for 
-trend estimation for soil mapping using statistical models, also known as
-pedometric or digital soil mapping (DSM). The concept behind **ACDC** comes 
-from the method originally proposed by 
-[Minasny and McBratney (2006)](http://dx.doi.org/10.1016/j.cageo.2005.12.009)
-(M&M henceforth), which they called the *conditioned Latin Hypercube Sampling*. 
-This is the most commonly used sampling method for trend estimation for DSM
-nowadays.
+spatial trend estimation for soil mapping using statistical models, also known
+as pedometric or digital soil mapping (DSM). The concept behind **ACDC** comes 
+from the method originally proposed by MinasnyEtAl2006b (M&M henceforth), which
+they called the *conditioned Latin Hypercube Sampling*. This is the most
+commonly used sampling method for spatial trend estimation for DSM nowadays.
 
 The general idea of the method of M&M is to reproduce in the sample the marginal
 distribution of the numeric covariates and class proportion of factor 
-covariates. The main assumption for this is that the *true* trend model is more
-likely to be identified if the sample reproduces the marginal distribution/class
-proportion of the covariates. Taking each covariate individually, **ACDC** 
-corresponds to the *equal-area* or *quantile* sampling method (WebsterEtAl2013).
+covariates. The main assumption for this is that the *true* spatial trend model
+is more likely to be identified if the sample reproduces the marginal 
+distribution/class proportion of the covariates. Taking each covariate 
+individually, **ACDC** corresponds to the *equal-area* or *quantile* sampling
+method (WebsterEtAl2013).
 
 The main free and open source implementation of the method of M&M is the 
-R-package ***clhs*** by 
-[Roudier et al. (2012)](http://cran.r-project.org/web/packages/clhs/). The
-package extended the method of M&M including the possibility to consider a cost
-surface that penalizes sampling locations that are difficult to access. Other
-researchers have also implemented the method of M&M as to consider a cost
-function ([Mulder et al., 2013](dx.doi.org/10.1016/j.jag.2012.07.004);
-[Clifford et al., 2014](dx.doi.org/10.1016/j.cageo.2014.03.005)), but none is
-available as a free software package. The current version of the R-package
-***spsann*** does not consider operational constraints.
+R-package ***clhs*** by RoudierEtAl2012. The package extended the method of M&M
+including the possibility to consider a cost surface that penalizes sampling
+locations that are difficult to access. Other researchers have also implemented
+the method of M&M as to consider a cost function (MulderEtAl2013; 
+CliffordEtAl2014), but none is available as a free software package. The 
+current version of the R-package ***spsann*** does not consider operational
+constraints.
 
 Built on top of the experience gained since the publication of the method of 
 M&M in 2006, ***spsann*** tries to go a step further in the knowledge on
@@ -45,7 +42,8 @@ presenting the equations used to define our objective function.
 # Covariates
 
 Five types of covariates, also known as predictor variables, can be used to
-calibrate a trend model for DSM. Let us see their definition (Everitt, 2006):
+calibrate a spatial trend model for DSM. Let us see their definition 
+(Everitt2006):
 
 * Binary: covariates which occur in one of two possible states (true/false,
 yes/no), these often being labelled 0 and 1. Example: presence/absence of rock
@@ -68,10 +66,10 @@ points of the scale are not necessarily equivalent. Example: drainage status
 (poor, moderate, well), profile development (shallow, moderately developed,
 deep), and pollution risk (low, moderate, high).
 
-When we calibrate a trend model in R, we have to be aware that R has different
-definitions for the variables. Continuous and discrete variables are defined as
-numeric and integer variables, respectively. Binary, categorical and ordinal
-covariates are defined as factor variables. The current version of
+When we calibrate a spatial trend model in R, we have to be aware that R has
+different definitions for the variables. Continuous and discrete variables are
+defined as numeric and integer variables, respectively. Binary, categorical and
+ordinal covariates are defined as factor variables. The current version of
 `optimACDC()` handles numeric, integer, and factor covariates. For convenience
 we group the first two and call them *numeric* covariates, and maintain the 
 term *factor* for factor covariates.
@@ -82,14 +80,15 @@ different from those covariates used in the traditional statistical setting.
 These features dictate how they should be handled.
 
 The first important feature is that each covariate is spatially exhaustive, that 
-is, they cover the entire study area. The set of values of a covariate composes
-the population of values of that covariate. As such, when calculating any 
-statistic to describe the population, we should use the appropriate equation for
-population estimates. This also means that the population of covariate values is
-constrained not only by the feature space, but also by the geographic space --
-the limits of the study area. It results that not all mathematically possible
-values exist, and we are constrained to the population of existing values. This
-is why the method of M&M is called *constrained* Latin hypercube sampling.
+is, they cover the entire spatial domain. The set of values of a covariate
+composes the population of values of that covariate. As such, when calculating
+any statistic to describe the population, we should use the appropriate equation
+for population estimates. This also means that the population of covariate
+values is constrained not only by the feature space, but also by the geographic
+space -- the limits of the spatial domain. It results that not all 
+mathematically possible values exist, and we are constrained to the population
+of existing values. This is why the method of M&M is called *constrained* Latin
+hypercube sampling.
 
 The second important feature is that the covariates are not random uncertain
 variables (with a few exception). Instead, in DSM we assume that they have been
@@ -102,32 +101,29 @@ value.
 
 The adjective *constrained* is an important information about the method of M&M.
 However, the original Latin hypercube sampling method was devised to work with
-random variables for simulations in computer experiments
-([McKay et al., 1979](dx.doi.org/10.2307/1268522);
-[Iman & Conover, 1982](dx.doi.org/10.1080/03610918208812265)). The nature of the
-variables is different from that of those employed in DSM. For example, there
-the variables are characterized by a probability distribution function (PDF) or
-by a multivariate PDF such as a Gaussian random field 
-([Pebesma & Heuvelink, 1999](dx.doi.org/10.1080/00401706.1999.10485930)). This
-shows that, although conceptually similar, the two methods are rather different. 
-These differences have not been fully taken into account so far. We demonstrate
-bellow some of the undesirable consequences and how we solve it in the current
-implementation of `optimACDC()`.
+random variables for simulations in computer experiments (McKayEtAl1979;
+ImanEtAl1982). The nature of the variables is different from that of those
+employed in DSM. For example, there the variables are characterized by a
+probability distribution function (PDF) or by a multivariate PDF such as a
+Gaussian random field (PebesmaEtAl1999). This shows that, although conceptually
+similar, the two methods are rather different. These differences have not been
+fully taken into account so far. We demonstrate bellow some of the undesirable
+consequences and how we solve it in the current implementation of `optimACDC()`.
 
 ## Numeric covariates
 
 ### Sampling strata
 
-Numeric covariates are commonly used to optimize sample patterns to calibrate
-trend models for DSM. Their use requires the definition of sampling strata. Two
-types of sampling strata can be defined:
+Numeric covariates are commonly used to optimize sample patterns to calibrate 
+spatial trend models for DSM. Their use requires the definition of sampling
+strata. Two types of sampling strata can be defined:
 
 * Equal-area: the sampling strata are defined as to cover equally-sized areas
-under curve of the frequency distribution of the population of covariate values.
-The sampling strata cover a smaller range of values at the regions where the
-frequency distribution is higher, and a larger range at the regions where the 
-frequency is lower. This guarantees that each sampling strata has the same
-number of units. The method is also known as quantile sampling.
+under the curve of the frequency distribution of the population of covariate
+values. The sampling strata cover a smaller range of values at the regions 
+where the frequency distribution is higher, and a larger range at the regions
+where the frequency is lower. This guarantees that each sampling strata has the
+same number of units. The method is also known as quantile sampling.
 
 * Equal-range: The sampling strata are defined as to cover the same range of
 values throughout the entire interval between the minimum and maximum value
@@ -140,9 +136,8 @@ sampling strata is set to the number of sample points $N$ so that the sample
 can be marginally maximally stratified. In the Latin hypercube sampling, which 
 is a stratified random sampling technique, the probability that a sample point
 has of falling in each of the sampling strata is equal to $N^{-1}$
-([Pebesma & Heuvelink, 1999](dx.doi.org/10.1080/00401706.1999.10485930)). In the
-method of M&M, these inclusion probabilities cannot be calculated because it is
-a non-probability purposive sampling technique.
+(PebesmaEtAl1999). In the method of M&M, these inclusion probabilities cannot 
+be calculated because it is a non-probability purposive sampling technique.
 
 The limits of each sampling strata are calculated using an estimate of the
 sample quantiles of the covariate. The implementation in the R-package 
@@ -169,13 +164,12 @@ $x
 
 The current implementation of `optimACDC()` solves this problem using a
 discontinuous function to calculate the sample quantiles - see *Definition 3* 
-of [Hyndman & Fan (1996)](http://www.jstor.org/stable/2684934), which is
-implemented in the function `quantile()` setting `type = 3`. This function was
-chosen among an universe of three functions because it produced the best break
-points for a set of covariates with different distributions, and it was the only
-one to produce the exact break points for a uniformly distributed variable. For
-the example above, the quantiles now honour the fact that the covariate is
-numeric but discontinuous:
+of HyndmanEtAl1996, which is implemented in the function `quantile()` setting
+`type = 3`. This function was chosen among an universe of three functions
+because it produced the best break points for a set of covariates with different
+distributions, and it was the only one to produce the exact break points for a
+uniformly distributed variable. For the example above, the quantiles now honour
+the fact that the covariate is numeric but discontinuous:
 
 ```r
 > breaks <- lapply(covars, quantile, probs, na.rm = TRUE, type = 3)
