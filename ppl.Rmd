@@ -475,9 +475,20 @@ optimized aiming at the distribution of the number of point-pairs per lag. The
 spatial domain is a square of 100 by 100 grid cells.
 
 ```{r}
+# load required packages and datasets
+require(pedometrics)
+require(spsann)
+require(sp)
+require(rgeos)
+require(geoR)
+require(lattice)
+```
+
+```{r}
 # Generate the spatial domain and sampling/prediction grid
 rm(list = ls())
-nx <- ny <- 100
+gc()
+nx <- ny <- 500
 s1 <- 1:nx
 s1 <- s1 - 0.5
 s2 <- s1
@@ -494,9 +505,7 @@ six lags instead of seven.
 # Optimize the sample configurations aiming at the number of (1) points and
 # (2) point-pairs per lag-distance class
 coordinates(candi) <- ~ s1 + s2
-gridded(candi) <- TRUE
-boundary <- as(candi, "SpatialPolygons")
-boundary <- gUnionCascaded(boundary)
+boundary <- bbox2sp(candi, keep.crs = FALSE)
 candi <- coordinates(candi)
 candi <- matrix(cbind(1:nrow(candi), candi), ncol = 3)
 x.max <- diff(bbox(boundary)[1, ])
@@ -504,16 +513,16 @@ y.max <- diff(bbox(boundary)[2, ])
 cutoff <- sqrt((x.max * x.max) + (y.max * y.max)) / 2
 # Points per lag
 set.seed(2001)
-sample_a <- optimPPL(points = 49, candi = candi, cutoff = cutoff, lags = 6,
-                     x.max = x.max, x.min = 3, y.max = y.max, y.min = 3,
-                     boundary = boundary, iterations = 50000, plotit = FALSE,
-                     verbose = FALSE)
+sample_a <- optimPPL(points = 49, candi = candi, cutoff = cutoff, lags = 7,
+                     x.max = x.max, x.min = sqrt(2), y.max = y.max, 
+                     y.min = sqrt(2), boundary = boundary, iterations = 50000,
+                     plotit = TRUE, verbose = FALSE)
 # Point-pairs per lag
 set.seed(2001)
-sample_b <- optimPPL(points = 49, candi = candi, cutoff = cutoff, lags = 6,
-                     x.max = x.max, x.min = 3, y.max = y.max, y.min = 3,
-                     boundary = boundary, iterations = 50000, plotit = FALSE,
-                     pairs = TRUE, verbose = FALSE)
+sample_b <- optimPPL(points = 49, candi = candi, cutoff = cutoff, lags = 7,
+                     x.max = x.max, x.min = sqrt(2), y.max = y.max, 
+                     y.min = sqrt(2), boundary = boundary, iterations = 50000,
+                     plotit = TRUE, pairs = TRUE, verbose = FALSE)
 ```
 
 We now create other two samples, one random and one systematic.
@@ -575,7 +584,6 @@ models$nugget <- 1 - models$p_sill
 models$model <- as.character(models$model)
 
 # Simulate realities
-require(geoR)
 sim_real <- list()
 n <- nrow(candi)
 for (i in 1:nrow(models)) {
@@ -592,16 +600,20 @@ for (i in 1:length(sim_real)) {
 
 ```{r}
 # Sample the simulated realities
-tmp <- sapply(1:length(sim_real), function (i) sim_real[[i]]$data[sample_a[, 1]])
+tmp <- sapply(1:length(sim_real),
+              function (i) sim_real[[i]]$data[sample_a[, 1]])
 sample_a <- cbind(sample_a, tmp)
 rm(tmp)
-tmp <- sapply(1:length(sim_real), function (i) sim_real[[i]]$data[sample_b[, 1]])
+tmp <- sapply(1:length(sim_real), 
+              function (i) sim_real[[i]]$data[sample_b[, 1]])
 sample_b <- cbind(sample_b, tmp)
 rm(tmp)
-tmp <- sapply(1:length(sim_real), function (i) sim_real[[i]]$data[sample_c[, 1]])
+tmp <- sapply(1:length(sim_real),
+              function (i) sim_real[[i]]$data[sample_c[, 1]])
 sample_c <- cbind(sample_c, tmp)  
 rm(tmp)
-tmp <- sapply(1:length(sim_real), function (i) sim_real[[i]]$data[sample_d[, 1]])
+tmp <- sapply(1:length(sim_real),
+              function (i) sim_real[[i]]$data[sample_d[, 1]])
 sample_d <- cbind(sample_d, tmp)
 rm(tmp)
 ```
