@@ -522,8 +522,7 @@ x.max <- diff(bbox(boundary)[1, ])
 y.max <- diff(bbox(boundary)[2, ])
 cutoff <- sqrt((x.max * x.max) + (y.max * y.max)) / 2
 lags <- 7
-iter <- 50000
-pts <- 49
+iter <- 100000
 n <- 3
 seed <- 2000
 ```
@@ -573,24 +572,34 @@ is being optimized for the number of point-pairs per lag-distance class. The
 first lag-distance class usually is undersampled.
 
 ```{r}
-# Produce the four sample configurations and save in the tmp folder for later
-# use
-sample_a <- optim_many_samples(pts = pts, lags = lags, iter = iter, 
-                               n = n, seed = seed)
-sample_b <- optim_many_samples(pts = pts, lags = lags, iter = iter, 
-                               n = n, pairs = TRUE, seed = seed)
-sample_c <- many_spsamples(pts = pts, n = n, type = "random", 
-                           boundary = boundary, seed = seed)
-sample_d <- many_spsamples(pts = pts, n = n, type = "nonaligned", 
-                           boundary = boundary, seed = seed)
-save(sample_a, sample_b, sample_c, sample_d, 
-     file = "~/projects/spsann/tmp/ppl_samples_49.rda")
-load("~/projects/spsann/tmp/ppl_samples_49.rda")
+# Optimize the sample configurations for three sample sizes and
+# save for later use
+pts <- c(50, 100, 200)
+for (i in 1:length(pts)) {
+  sample_a <- optim_many_samples(pts = pts[i], lags = lags, iter = iter, 
+                                 n = n, seed = seed)
+  sample_b <- optim_many_samples(pts = pts[i], lags = lags, iter = iter, 
+                                 n = n, pairs = TRUE, seed = seed)
+  sample_c <- many_spsamples(pts = pts[i], n = n, type = "random", 
+                             boundary = boundary, seed = seed)
+  sample_d <- many_spsamples(pts = pts[i], n = n, type = "nonaligned", 
+                             boundary = boundary, seed = seed)
+  file <- paste("~/projects/spsann/tmp/ppl_samples_", pts[i], ".rda", sep = "")
+  save(sample_a, sample_b, sample_c, sample_d, file = file)
+  rm(sample_a, sample_b, sample_c, sample_d)
+  gc()
+}
+```
+
+```{r}
 # Check the resulting sample configurations
-eval_samples(list(sample_a, sample_b, sample_c, sample_d), 
-             lags = lags, cutoff = cutoff, candi = candi, pairs = FALSE)
-eval_samples(list(sample_a, sample_b, sample_c, sample_d), 
-             lags = lags, cutoff = cutoff, candi = candi, pairs = TRUE)
+load("~/projects/spsann/tmp/ppl_samples_50.rda")
+#load("~/projects/spsann/tmp/ppl_samples_100.rda")
+#load("~/projects/spsann/tmp/ppl_samples_200.rda")
+check_samples(list(sample_a, sample_b, sample_c, sample_d), 
+              lags = lags, cutoff = cutoff, candi = candi, pairs = FALSE)
+check_samples(list(sample_a, sample_b, sample_c, sample_d), 
+              lags = lags, cutoff = cutoff, candi = candi, pairs = TRUE)
 # Plot samples
 plot_samples(list(sample_a, sample_b, sample_c, sample_d))
 ```
@@ -627,27 +636,6 @@ plot_nugget(sample_all, n = 49)
 plot_partial_sill(sample_all, n = 49)
 plot_range(sample_all, n = 49)
 ```
-
-```{r}
-# Optimize for pts <- c(100, 200)
-pts <- c(100, 200)
-for (i in 1:length(pts)) {
-  sample_a <- optim_many_samples(pts = pts[i], lags = lags, iter = iter, 
-                                 n = n, seed = seed)
-  sample_b <- optim_many_samples(pts = pts[i], lags = lags, iter = iter, 
-                                 n = n, pairs = TRUE, seed = seed)
-  sample_c <- many_spsamples(pts = pts[i], n = n, type = "random", 
-                             boundary = boundary, seed = seed)
-  sample_d <- many_spsamples(pts = pts[i], n = n, type = "nonaligned", 
-                             boundary = boundary, seed = seed)
-  file <- paste("~/projects/spsann/tmp/ppl_samples_", pts[i], ".rda", sep = "")
-  save(sample_a, sample_b, sample_c, sample_d, file = file)
-}
-
-# Optimize for n = 200
-
-```
-
 
 
 [Pedometrics 2015]: https://sites.google.com/site/pedometrics2015/home
