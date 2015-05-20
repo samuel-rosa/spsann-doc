@@ -538,6 +538,31 @@ behaviour of the different sample configurations in such an unfavorable case.
 The quantity of spatially structured variance (partial sill) also varies from
 very little (0.1) to very much (0.9).
 
+```{r simulate_realities}
+# Function to simulate realities
+simulate_realities <-
+  function (models, grid, cov.model, cov.pars, nugget, seed = 2001) {
+    sim_real <- list()
+    n <- nrow(candi)
+    for (i in 1:nrow(models)) {
+      set.seed(seed)
+      sim_real[[i]] <- grf(n = n, grid = grid, cov.model = models[i, 1], 
+                           cov.pars = as.numeric(models[i, 2:3]),
+                           nugget = as.numeric(models[i, 4]))
+    }
+    return (sim_real)
+  }
+# Function to plot the simulated realities
+plot_simulate_realities <-
+  function (realities) {
+    par(mfrow = c(3, 3))
+    for (i in 1:length(realities)) {
+      image(realities[[i]])
+    }
+  }
+```
+
+
 ```{r}
 # Variogram models based on the study of Lark (2002)
 model <- "exponential"
@@ -572,6 +597,41 @@ is being optimized for the number of point-pairs per lag-distance class. The
 first lag-distance class usually is undersampled.
 
 ```{r}
+# Function to optimize many sample configurations
+optim_many_samples <- 
+  function (pts, lags, iter, n = 3, seed = 2000, plotit = FALSE, 
+            pairs = FALSE) {
+    res <- list()
+    for (i in 1:n) {
+      set.seed(seed + i)
+      res[[i]] <- optimPPL(points = pts, candi = candi, cutoff = cutoff, 
+                           lags = lags, x.max = x.max, x.min = sqrt(2), 
+                           y.max = y.max, y.min = sqrt(2), boundary = boundary,
+                           iterations = iter, plotit = plotit, verbose = FALSE,
+                           pairs = pairs)
+    }
+    return (res)
+  }
+```
+
+```{r}
+# Function to create many samples using spsample
+many_spsamples <-
+  function (pts, n = 3, seed = 2000, type = "random", boundary) {
+    res <- list()
+    for (i in 1:n) {
+      set.seed(seed + i)
+      res[[i]] <- as.data.frame(spsample(x = boundary, n = pts, type = type))
+      id <- 1:nrow(res[[i]])
+      res[[i]] <- cbind(id, res[[i]])
+      res[[i]] <- as.matrix(res[[i]])
+    }
+    return (res)
+  }
+```
+
+
+```{r}
 # Optimize the sample configurations for three sample sizes and
 # save for later use
 pts <- c(50, 100, 200)
@@ -592,6 +652,41 @@ for (i in 1:length(pts)) {
 ```
 
 ```{r}
+# Function to evaluate the resulting samples regarding the number of points 
+# or point-pairs per lag
+check_samples <-
+  function (samples, id = c("points", "pairs", "random", "systematic"), ...) {
+    n <- length(samples[[1]])
+    n <- c(1:2, 1:n * 3)
+        
+    res <- lapply(1:length(samples), function (i) {
+      res <- lapply(samples[[i]], countPPL, ...)
+    })
+    res <- lapply(res, function (x) {
+      do.call(cbind, x)
+    })
+    res <- lapply(1:length(res), function (i) {
+      res[[i]][, n]
+    })
+    names(res) <- id
+    return (res)
+  }
+# Function to plot the samples
+plot_samples <-
+  function (samples) {
+    par(mfrow = c(4, 3))
+    lapply(samples, function (x) {
+      lapply(1:length(x), function(i) {
+        plot(boundary)
+        points(x[[i]][, 2:3], cex = 0.5, pch = 20)
+      })
+    })
+  }
+```
+
+
+
+```{r}
 # Check the resulting sample configurations
 load("~/projects/spsann/tmp/ppl_samples_50.rda")
 #load("~/projects/spsann/tmp/ppl_samples_100.rda")
@@ -610,6 +705,40 @@ sampled point data is used to calibrate linear mixed models using the R-package
 (REML). 
 
 ```{r}
+# Function to sample the simulated realities
+sample_simulated_realities <- 
+  function (samples, realities) {
+    tmp <- lapply(samples, function (x) {
+      sapply(1:length(realities), function (i) realities[[i]]$data[x[, 1]])
+    })
+    res <- lapply(1:length(samples), function (i) {
+      cbind(samples[[i]], tmp[[i]])
+    })
+    return (res)
+  }
+```
+
+```{r}
+# Function to calibrate the linear mixed models
+calibrate_lmm <-
+  function (samples, ini.cov.pars = c(0.5, 25), fix.nugget = FALSE,
+            nugget = c(0, 0.5, 1), lik.method = "REML") {
+    res <- lapply(samples, function (x) {
+      sam <- lapply(4:ncol(x), function (i) {
+        likfit(geodata = list(coords = x[, 2:3], data = x[, i]),
+               ini.cov.pars = ini.cov.pars, fix.nugget = fix.nugget, 
+               nugget = nugget, lik.method = lik.method)
+      })
+      sam <- t(sapply(sam, function (x) x[c(4, 5, 2)]))
+    })
+    id <- rep(1:length(samples), each = nrow(res[[1]]))
+    res <- cbind(id, do.call(rbind, res))
+    return (res)
+  }
+```
+
+
+```{r}
 # Sample the simulated realities
 sample_a <- sample_simulated_realities(samples = sample_a, realities = sim_real)
 sample_b <- sample_simulated_realities(samples = sample_b, realities = sim_real)
@@ -622,6 +751,42 @@ sample_c_lmm <- calibrate_lmm(samples = sample_c)
 sample_d_lmm <- calibrate_lmm(samples = sample_d)
 ```
 
+```{r}
+# Function to plot the estimated nugget variance
+plot_nugget <- 
+  function (data, n = 49) {
+    xyplot(nugget.1 ~ nugget | sample + as.factor(range), data = data, 
+           pch = 20, scales = list(relation = "free"), ylab = "Estimated", 
+           xlab = "True", main = paste("Nugget (n = ", n, ")", sep = ""),
+           panel = function(...) {
+             panel.xyplot(...)
+             panel.abline(a = 0, b = 1)
+           })
+  }
+# Function to plot the estimated partial sill
+plot_partial_sill <- 
+  function (data, n = 49) {
+    xyplot(sigmasq ~ p_sill | sample + as.factor(range), data = data, 
+           pch = 20, scales = list(relation = "free"), ylab = "Estimated", 
+           xlab = "True", main = paste("Partial sill (n = ", n, ")", sep = ""),
+           panel = function(...) {
+             panel.xyplot(...)
+             panel.abline(a = 0, b = 1)
+           })
+  }
+# Function to plot the estimated range
+plot_range <- 
+  function (data, n = 49) {
+    xyplot(phi ~ range | sample + as.factor(c(p_sill / c(nugget + p_sill))),
+           data = data, pch = 20, scales = list(relation = "free"), 
+           ylab = "Estimated", xlab = "True", 
+           main = paste("Range (n = ", n, ")", sep = ""),
+           panel = function(...) {
+             panel.xyplot(...)
+             panel.abline(a = 0, b = 1)
+           })
+  }
+```
 
 
 ```{r}
