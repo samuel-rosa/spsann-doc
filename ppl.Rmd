@@ -480,7 +480,7 @@ sampled data. The best performing sample configuration is that for which the
 estimated variogram model parameters are closer to the true variogram model
 parameters.
 
-```{r, echo=FALSE}
+```{r}
 # Clean workspace and load required packages
 rm(list = ls())
 gc()
@@ -491,9 +491,7 @@ require(rgeos)
 require(geoR)
 require(lattice)
 # Source simulated realities created in a previous R section
-load("~/projects/spsann/tmp/sim_real.rda")
-# Load user-defined functions
-source("~/projects/spsann/code/R/ppl-doc.R")
+load("tmp/ppl-sim-real.rda")
 ```
 
 The spatial domain is a square of 500 by 500 (unitless). The cell size of the 
@@ -577,7 +575,7 @@ models$model <- as.character(models$model)
 # Simulate realities and save in the tmp folder for later use
 sim_real <- simulate_realities(models = models, grid = candi[, 2:3])
 plot_simulate_realities(sim_real)
-save(sim_real, file = "~/projects/spsann/tmp/sim_real.rda")
+save(sim_real, file = "tmp/ppl-sim-real.rda")
 ```
 
 The next step is to create the sample configurations. The parameters of the
@@ -596,7 +594,7 @@ the optimum solution. This is of concern mainly when the sample configuration
 is being optimized for the number of point-pairs per lag-distance class. The 
 first lag-distance class usually is undersampled.
 
-```{r}
+```{r optim_many_samples}
 # Function to optimize many sample configurations
 optim_many_samples <- 
   function (pts, lags, iter, n = 3, seed = 2000, plotit = FALSE, 
@@ -614,7 +612,7 @@ optim_many_samples <-
   }
 ```
 
-```{r}
+```{r many_spsamples}
 # Function to create many samples using spsample
 many_spsamples <-
   function (pts, n = 3, seed = 2000, type = "random", boundary) {
@@ -644,7 +642,7 @@ for (i in 1:length(pts)) {
                              boundary = boundary, seed = seed)
   sample_d <- many_spsamples(pts = pts[i], n = n, type = "nonaligned", 
                              boundary = boundary, seed = seed)
-  file <- paste("~/projects/spsann/tmp/ppl_samples_", pts[i], ".rda", sep = "")
+  file <- paste("tmp/ppl_samples_", pts[i], ".rda", sep = "")
   save(sample_a, sample_b, sample_c, sample_d, file = file)
   rm(sample_a, sample_b, sample_c, sample_d)
   gc()
@@ -688,7 +686,7 @@ plot_samples <-
 
 ```{r}
 # Check the resulting sample configurations
-load("~/projects/spsann/tmp/ppl_samples_50.rda")
+load("tmp/ppl_samples_50.rda")
 #load("~/projects/spsann/tmp/ppl_samples_100.rda")
 #load("~/projects/spsann/tmp/ppl_samples_200.rda")
 check_samples(list(sample_a, sample_b, sample_c, sample_d), 
