@@ -475,13 +475,14 @@ optimization criterion with other sample configurations: random and systematic,
 and a sample configuration optimized aiming at the distribution of the number 
 of point-pairs per lag. Our objective is to see which sample configuration is
 better in capturing the true form of the data generating process. We do so 
-sampling form simulated realities and then fitting linear mized models with the
+sampling form simulated realities and then fitting linear mixed models with the
 sampled data. The best performing sample configuration is that for which the 
 estimated variogram model parameters are closer to the true variogram model
 parameters.
 
 ```{r}
-# Clean workspace and load required packages
+# Clean workspace and load required packages, load simulated realities created
+# in a previous R section, and source user-defined functions
 rm(list = ls())
 gc()
 require(pedometrics)
@@ -490,19 +491,20 @@ require(sp)
 require(rgeos)
 require(geoR)
 require(lattice)
-# Source simulated realities created in a previous R section
+require(gridExtra)
 load("tmp/ppl-sim-real.rda")
+source("tmp/ppl.R")
 ```
 
 The spatial domain is a square of 500 by 500 (unitless). The cell size of the 
 sampling/prediction grid is equal to 1 (unitless). The maximum jittering in the
 x- and y-coordinates is defined using the sides of the bounding box of the
 spatial domain (500). The minimum jittering for both coordinates is equal the
-square root of two times the grid cell size. We use seven exponentially spaced 
-lag-distance classes.The lag-distance cut-off is set as equal to the radius of
-the bounding box of the spatial domain. The solution is to be found with a 
-maximum of 50000 iterations. Note that we use 3 samples of 49 points. This is 
-to give more confidence about the results.
+square root of two times the grid cell size (`sqrt(2 * 1) = 1.414214`). We use
+seven exponentially spaced lag-distance classes. The lag-distance cut-off is 
+set as equal to the radius of the bounding box of the spatial domain. The
+solution is to be found with a maximum of 50000 iterations. We use three 
+samples to have more confidence about the results.
 
 ```{r}
 # Generate the spatial domain and sampling/prediction grid, and set the 
@@ -518,7 +520,8 @@ candi <- coordinates(candi)
 candi <- matrix(cbind(1:nrow(candi), candi), ncol = 3)
 x.max <- diff(bbox(boundary)[1, ])
 y.max <- diff(bbox(boundary)[2, ])
-cutoff <- sqrt((x.max * x.max) + (y.max * y.max)) / 2
+diago <- sqrt((x.max * x.max) + (y.max * y.max))
+cutoff <- diago / 2
 lags <- 7
 iter <- 100000
 n <- 3
@@ -526,40 +529,15 @@ seed <- 2000
 ```
 
 The variogram model parameters used to simulate realities are described bellow.
-They are based on (but not equal to) those used in the study of [Lark (2002)].
-The combination of the different of values result in nice scenarios. The range
-parameter of the variogram model goes from very short (5 units) to very large 
-(500 units) spatial dependence. We do not expect any sample configuration to
-enable estimating the true range parameter of 500 units because estimates above
-the radius of the spatial domain are highly uncertain. Our goal is to see the
-behaviour of the different sample configurations in such an unfavorable case.
-The quantity of spatially structured variance (partial sill) also varies from
-very little (0.1) to very much (0.9).
-
-```{r simulate_realities}
-# Function to simulate realities
-simulate_realities <-
-  function (models, grid, cov.model, cov.pars, nugget, seed = 2001) {
-    sim_real <- list()
-    n <- nrow(candi)
-    for (i in 1:nrow(models)) {
-      set.seed(seed)
-      sim_real[[i]] <- grf(n = n, grid = grid, cov.model = models[i, 1], 
-                           cov.pars = as.numeric(models[i, 2:3]),
-                           nugget = as.numeric(models[i, 4]))
-    }
-    return (sim_real)
-  }
-# Function to plot the simulated realities
-plot_simulate_realities <-
-  function (realities) {
-    par(mfrow = c(3, 3))
-    for (i in 1:length(realities)) {
-      image(realities[[i]])
-    }
-  }
-```
-
+Their definition is based on the study of [Lark (2002)]. The combination of the
+different values results in nice scenarios. The range parameter of the variogram
+model goes from very short (5 units) to very large (500 units) spatial 
+dependence. We do not expect any sample configuration to enable estimating the
+true range parameter of 500 units because estimates above the radius of the
+spatial domain are highly uncertain. Our goal is to see the behaviour of the
+different sample configurations in such an unfavorable case. The quantity of
+spatially structured variance (partial sill) also varies from very little (0.1)
+to very much (0.9).
 
 ```{r}
 # Variogram models based on the study of Lark (2002)
@@ -582,52 +560,12 @@ The next step is to create the sample configurations. The parameters of the
 spatial simulated annealling algorithm were described above. The other two 
 sample configurations are a random sample and a systematic nonaligned sample.
 The use of the systematic nonaligned sample is because there is randomness in 
-the selection of the point locations, which guarantees that the 3 samples will
-be different. This type of sample also produces a few clusters of points, which
-is important to estimate the nugget variance. The resulting samples are 
-checked visually and computing the number of points and point-pairs per 
+the selection of the point locations, which guarantees that the three samples
+will be different. This type of sample also produces a few clusters of points,
+which is important to estimate the nugget variance. The resulting samples are 
+checked visually and by computing the number of points and point-pairs per 
 lag-distance class. The last is important to see if the optimization algorithm
 converged to the optimum solution in all cases.
-
-It seems that 50000 iteration are not enough for the algorithm to converge to
-the optimum solution. This is of concern mainly when the sample configuration
-is being optimized for the number of point-pairs per lag-distance class. The 
-first lag-distance class usually is undersampled.
-
-```{r optim_many_samples}
-# Function to optimize many sample configurations
-optim_many_samples <- 
-  function (pts, lags, iter, n = 3, seed = 2000, plotit = FALSE, 
-            pairs = FALSE) {
-    res <- list()
-    for (i in 1:n) {
-      set.seed(seed + i)
-      res[[i]] <- optimPPL(points = pts, candi = candi, cutoff = cutoff, 
-                           lags = lags, x.max = x.max, x.min = sqrt(2), 
-                           y.max = y.max, y.min = sqrt(2), boundary = boundary,
-                           iterations = iter, plotit = plotit, verbose = FALSE,
-                           pairs = pairs)
-    }
-    return (res)
-  }
-```
-
-```{r many_spsamples}
-# Function to create many samples using spsample
-many_spsamples <-
-  function (pts, n = 3, seed = 2000, type = "random", boundary) {
-    res <- list()
-    for (i in 1:n) {
-      set.seed(seed + i)
-      res[[i]] <- as.data.frame(spsample(x = boundary, n = pts, type = type))
-      id <- 1:nrow(res[[i]])
-      res[[i]] <- cbind(id, res[[i]])
-      res[[i]] <- as.matrix(res[[i]])
-    }
-    return (res)
-  }
-```
-
 
 ```{r}
 # Optimize the sample configurations for three sample sizes and
@@ -649,92 +587,33 @@ for (i in 1:length(pts)) {
 }
 ```
 
-```{r}
-# Function to evaluate the resulting samples regarding the number of points 
-# or point-pairs per lag
-check_samples <-
-  function (samples, id = c("points", "pairs", "random", "systematic"), ...) {
-    n <- length(samples[[1]])
-    n <- c(1:2, 1:n * 3)
-        
-    res <- lapply(1:length(samples), function (i) {
-      res <- lapply(samples[[i]], countPPL, ...)
-    })
-    res <- lapply(res, function (x) {
-      do.call(cbind, x)
-    })
-    res <- lapply(1:length(res), function (i) {
-      res[[i]][, n]
-    })
-    names(res) <- id
-    return (res)
-  }
-# Function to plot the samples
-plot_samples <-
-  function (samples) {
-    par(mfrow = c(4, 3))
-    lapply(samples, function (x) {
-      lapply(1:length(x), function(i) {
-        plot(boundary)
-        points(x[[i]][, 2:3], cex = 0.5, pch = 20)
-      })
-    })
-  }
-```
-
-
+The algorithm does not converge to the optimum solution when the objective is
+to have a uniform distribution of point-pairs per lag distance class. The first
+three lag-distance classes are largely under-sampled. This was observed with 
+50000 and 100000 iterations for the three sample sizes (50, 100, and 200). The
+first lags are largely under-sampled when using random and systematic samples
+too.
 
 ```{r}
-# Check the resulting sample configurations
-load("tmp/ppl_samples_50.rda")
-#load("~/projects/spsann/tmp/ppl_samples_100.rda")
-#load("~/projects/spsann/tmp/ppl_samples_200.rda")
+# Check the resulting sample configurations (select a single rda file)
+#load("tmp/ppl_samples_50.rda")
+#load("tmp/ppl_samples_100.rda")
+#load("tmp/ppl_samples_200.rda")
+# Points
 check_samples(list(sample_a, sample_b, sample_c, sample_d), 
               lags = lags, cutoff = cutoff, candi = candi, pairs = FALSE)
+# Pairs
 check_samples(list(sample_a, sample_b, sample_c, sample_d), 
               lags = lags, cutoff = cutoff, candi = candi, pairs = TRUE)
 # Plot samples
-plot_samples(list(sample_a, sample_b, sample_c, sample_d))
+x11()
+plot_samples(list(sample_a, sample_b, sample_c, sample_d), n = 200)
 ```
 
 With the sample configurations at hand, we sample the simulated realities. The 
 sampled point data is used to calibrate linear mixed models using the R-package
 `geoR`. Model parameters are estimated using restricted maximum likelihood
-(REML). 
-
-```{r}
-# Function to sample the simulated realities
-sample_simulated_realities <- 
-  function (samples, realities) {
-    tmp <- lapply(samples, function (x) {
-      sapply(1:length(realities), function (i) realities[[i]]$data[x[, 1]])
-    })
-    res <- lapply(1:length(samples), function (i) {
-      cbind(samples[[i]], tmp[[i]])
-    })
-    return (res)
-  }
-```
-
-```{r}
-# Function to calibrate the linear mixed models
-calibrate_lmm <-
-  function (samples, ini.cov.pars = c(0.5, 25), fix.nugget = FALSE,
-            nugget = c(0, 0.5, 1), lik.method = "REML") {
-    res <- lapply(samples, function (x) {
-      sam <- lapply(4:ncol(x), function (i) {
-        likfit(geodata = list(coords = x[, 2:3], data = x[, i]),
-               ini.cov.pars = ini.cov.pars, fix.nugget = fix.nugget, 
-               nugget = nugget, lik.method = lik.method)
-      })
-      sam <- t(sapply(sam, function (x) x[c(4, 5, 2)]))
-    })
-    id <- rep(1:length(samples), each = nrow(res[[1]]))
-    res <- cbind(id, do.call(rbind, res))
-    return (res)
-  }
-```
-
+(REML). Estimated parameters are: nugget, partial sill, and range.
 
 ```{r}
 # Sample the simulated realities
@@ -749,43 +628,45 @@ sample_c_lmm <- calibrate_lmm(samples = sample_c)
 sample_d_lmm <- calibrate_lmm(samples = sample_d)
 ```
 
-```{r}
-# Function to plot the estimated nugget variance
-plot_nugget <- 
-  function (data, n = 49) {
-    xyplot(nugget.1 ~ nugget | sample + as.factor(range), data = data, 
-           pch = 20, scales = list(relation = "free"), ylab = "Estimated", 
-           xlab = "True", main = paste("Nugget (n = ", n, ")", sep = ""),
-           panel = function(...) {
-             panel.xyplot(...)
-             panel.abline(a = 0, b = 1)
-           })
-  }
-# Function to plot the estimated partial sill
-plot_partial_sill <- 
-  function (data, n = 49) {
-    xyplot(sigmasq ~ p_sill | sample + as.factor(range), data = data, 
-           pch = 20, scales = list(relation = "free"), ylab = "Estimated", 
-           xlab = "True", main = paste("Partial sill (n = ", n, ")", sep = ""),
-           panel = function(...) {
-             panel.xyplot(...)
-             panel.abline(a = 0, b = 1)
-           })
-  }
-# Function to plot the estimated range
-plot_range <- 
-  function (data, n = 49) {
-    xyplot(phi ~ range | sample + as.factor(c(p_sill / c(nugget + p_sill))),
-           data = data, pch = 20, scales = list(relation = "free"), 
-           ylab = "Estimated", xlab = "True", 
-           main = paste("Range (n = ", n, ")", sep = ""),
-           panel = function(...) {
-             panel.xyplot(...)
-             panel.abline(a = 0, b = 1)
-           })
-  }
-```
+Using 50 sample points, both criteria the number of points and point-pairs per
+lag enable an accurate estimate of the nugget variance if the range is above 50
+m. For a short range (5 m), these criteria are somewhat efficient only when the
+nugget variance is very small.
+Estimating the partial sill was somewhat difficult. But it appears that using
+the number of points per lag makes the better estimates when the partial sill is
+moderate to high, and the range is bellow 50 m. The number of point-pairs is
+more efficient for low to moderate partial sill when the range is bellow 50 m.
+No sample configuration made an accurate estimate of the range when the nugget
+variance is high, or when the range is very long (500 m). Using the number of 
+points per lag as the optimization criterion was more efficient to estimate 
+the range (5 and 50 m) when the nugget variance was modetrate to low.
+Both random and systematic samples were inneficient for all evaluated 
+parameters.
 
+With 100 samples, the nugget variance was better estimated when using the number 
+of points as criterion when the range was moderate to long and the nugget 
+small to moderate, and when the nugget was small and the range short. The number
+of poinrt-pairs was efficient in estimating the nugget when it was small for all
+three ranges.
+Again, estimating the partial sill was somwhat difficult. The number of points
+was efficient only with large ranges and small to moderate partial sills.
+Overall, the range is better estimated when it is short to moderate independent
+of the sample configuration.
+Systematic samples improved the prediction with increasing the number of points.
+
+
+With 200 sample, both points and point-pairs make an accurate estimate of the 
+nugget when the range is moderate to long. Systematic sample makes precise
+estimates, but overstimates the nugget.
+
+Again, estimating the partial sill was somwhat difficult. Curiously, the 
+systematic sample was the one that performed best when the range was moderate.
+The number of point-pairs was consistently better when the partial sill was 
+high. The number of points was consistently better when the partial sill was 
+low.
+
+Overall, the range is better estimated when it is short to moderate independent
+of the sample configuration.
 
 ```{r}
 # Compare the estimated parameters with the true parameters
@@ -795,9 +676,18 @@ sample_c_lmm <- data.frame(sample = "random", models, sample_c_lmm)
 sample_d_lmm <- data.frame(sample = "systematic", models, sample_d_lmm)
 sample_all <- rbind(sample_a_lmm, sample_b_lmm, sample_c_lmm, sample_d_lmm)
 sample_all <- sample_all[, -2]
-plot_nugget(sample_all, n = 49)
-plot_partial_sill(sample_all, n = 49)
-plot_range(sample_all, n = 49)
+x11()
+n <- 200
+dev.off()
+pdf(paste("tmp/nugget-", n, "pts.pdf", sep = ""))
+plot_nugget(sample_all, n = n)
+dev.off()
+pdf(paste("tmp/partial-sill-", n, "pts.pdf", sep = ""))
+plot_partial_sill(sample_all, n = n)
+dev.off()
+pdf(paste("tmp/range-", n, "pts.pdf", sep = ""))
+plot_range(sample_all, n = n)
+dev.off()
 ```
 
 
