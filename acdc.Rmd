@@ -504,3 +504,133 @@ values among covariates, specially because many of combinations are impossible
 due to the constrained nature of the data, an estimate of the nadir point would 
 be highly uncertain. The alternative is to estimate the nadir point using expert 
 knowledge or simulations, or use the Pareto maximum.
+
+# Examples
+
+The following example was used to prepare an abstract to the Pedometrics 2015,
+which takes place in Córdoba, Spain, between 14 and 18 of September. We use the
+`meuse` dataset to compare two sample configurations optimized using three
+numeric covariates: the x and y coordinates, and the distance to the Meuse 
+river. The first sample configuration is optimized without scalling the 
+objective function values. This is what is done by the cLHS. The second sample
+configuration is optimized scalling the objective function values using the
+upper-lower bound approach with the Pareto maximum and minimum.
+
+```{r}
+# Load required packages and data
+require(sp)
+require(spsann)
+require(rgeos)
+data(meuse.grid)
+candi <- meuse.grid[, 1:2]
+coordinates(candi) <- ~ x + y
+gridded(candi) <- TRUE
+boundary <- as(candi, "SpatialPolygons")
+boundary <- gUnionCascaded(boundary)
+candi <- coordinates(candi)
+candi <- cbind(1:dim(candi)[1], candi)
+#candi <- matrix(cbind(1:dim(candi)[1], candi), ncol = 3)
+```
+
+```{r}
+# Settings for the spatial simulated annealing algorithm
+x.max <- diff(bbox(boundary)[1, ])
+y.max <- diff(bbox(boundary)[2, ])
+nadir <- list(sim = 100, seeds = 1:100)
+utopia <- list(user = list(DIST = 0, CORR = 0))
+covars <- cbind(meuse.grid[, 5], runif(nrow(meuse.grid)), 
+                rnorm(nrow(meuse.grid)), rlnorm(nrow(meuse.grid)))
+points <- 100
+use.coords <- TRUE
+minJitter <- 
+  function (candi) {
+    candi <- as.data.frame(candi)
+    coordinates(candi) <- ~ x + y
+    gridded(candi) <- TRUE
+    res <- as.data.frame(t(candi@grid@cellsize))
+    return (res)
+    }
+minXY <- minJitter(candi)
+iterations <- 10000
+x11()
+```
+
+
+```{r}
+# Optimize the sample configuration for a) the correlation and b) marginal
+# distribution of the covariates, scalling the objective function values at
+# the begining of the optimization
+set.seed(2001)
+res_a <- optimACDC(points = points, candi = candi, covars = covars, 
+                   y.max = y.max, use.coords = use.coords, x.max = x.max, 
+                   x.min = minXY$x, y.min = minXY$y, boundary = boundary,
+                   iterations = iterations, nadir = nadir, utopia = utopia)
+```
+
+
+```{r}
+# Optimize the sample configuration for the correlation among covariates
+set.seed(2001)
+res_b <- optimCORR(points = points, candi = candi, covars = covars, 
+                   y.max = y.max, use.coords = use.coords, x.max = x.max, 
+                   x.min = minXY$x, y.min = minXY$y, boundary = boundary,
+                   iterations = iterations)
+```
+
+```{r}
+# Optimize the sample configuration for the marginal distribution of the
+# covariates
+set.seed(2001)
+res_c <- optimDIST(points = points, candi = candi, covars = covars, 
+                   y.max = y.max, use.coords = use.coords, x.max = x.max, 
+                   x.min = minXY$x, y.min = minXY$y, boundary = boundary,
+                   iterations = iterations)
+```
+
+```{r}
+# Optimize the sample configuration for a) the correlation and b) marginal
+# distribution of the covariates, scalling the objective function values with
+# the upper-lowwer bound approach using the Pareto maximum and minimum.
+pareto <- data.frame(CORR = sapply(list(res_b, res_c), objCORR, candi = candi,
+                                   covars = covars, use.coords = use.coords),
+                     DIST = sapply(list(res_b, res_c), objDIST, candi = candi,
+                                   covars = covars, use.coords = use.coords))
+rownames(pareto) <- c("CORR", "DIST")
+pareto
+nadir <- list(user = list(CORR = pareto[2, 1], DIST = pareto[1, 2]))
+utopia <- list(user = list(CORR = pareto[1, 1], DIST = pareto[2, 2]))
+set.seed(2001)
+res_d <- optimACDC(points = points, candi = candi, covars = covars, 
+                   y.max = y.max, use.coords = use.coords, x.max = x.max, 
+                   x.min = minXY$x, y.min = minXY$y, boundary = boundary,
+                   iterations = iterations, nadir = nadir, utopia = utopia)
+```
+
+
+```{r}
+res <- data.frame(CORR = sapply(list(res_a, res_b, res_c, res_d), objCORR,
+                                candi = candi, covars = covars, 
+                                   use.coords = use.coords),
+                     DIST = sapply(list(res_a, res_b, res_c, res_d), objDIST,
+                                   candi = candi, covars = covars, 
+                                   use.coords = use.coords))
+rownames(res) <- c("ACDCa", "CORR", "DIST", "ACDCb")
+res
+
+plotRes <- function (res) {
+  plot(attr(res, "energy")$obj, type = "l", xlab = "iteration", 
+       ylab = "energy state", ylim = c(0, max(attr(res, "energy"))))
+lines(attr(res, "energy")$CORR, type = "l", col = "red")
+lines(attr(res, "energy")$DIST, type = "l", col = "blue")
+}
+par(mfrow = c(1, 2))
+plotRes(res_a)
+plotRes(res_d)
+```
+
+```{r}
+cor(covars)
+cor(covars[res_a[, 1], ])
+cor(covars[res_d[, 1], ])
+```
+
