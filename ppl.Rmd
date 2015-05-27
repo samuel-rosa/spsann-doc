@@ -603,12 +603,13 @@ for (i in 1:length(pts)) {
 }
 ```
 
-The algorithm does not converge to the optimum solution when the objective is
-to have a uniform distribution of point-pairs per lag distance class. The first
-three lag-distance classes are largely under-sampled. This was observed with 
-50000 and 100000 iterations for the three sample sizes (50, 100, and 200). The
-first lags are largely under-sampled when using random and systematic samples
-too.
+The box-and-whisker plots show that the algorithm does not converge to the 
+optimum solution when the objective is to have a uniform distribution of 
+point-pairs per lag distance class. The number of point-pairs in the first two
+lag-distance classes is considerably lower than expected for the three sample 
+sizes. The same result was observed using 50000 and 100000 iterations. The other
+three sample types result in a considerably larger number of point-pairs in 
+the last two lag-distance classes.
 
 ```{r}
 # Check the resulting sample configurations (select a single rda file)
@@ -630,10 +631,18 @@ plot_samples(list(sample_a, sample_b, sample_c, sample_d), n = 200)
 dev.off()
 ```
 
+The box-and-whisker plots also show that when the criterion is the number of 
+points per lag-distance class, random and systematic sampling produce an 
+insignificant number of points contributing to the first lag-distance classes,
+the last being the worst. The coverage of these lags is better when the sample
+configuration is optimized regarding the number of point-pairs per lag-distance
+class. All three sample types produce a more satisfactory coverage of the last
+four lags as the sample size increases.
+
 With the sample configurations at hand, we sample the simulated realities. The 
 sampled point data is used to calibrate linear mixed models using the R-package
-`geoR`. Model parameters are estimated using restricted maximum likelihood
-(REML). Estimated parameters are: nugget, partial sill, and range.
+`geoR`. Model parameters (nugget, partial sill, and range) are estimated using
+restricted maximum likelihood (REML).
 
 ```{r}
 # Sample the simulated realities
@@ -648,45 +657,27 @@ sample_c_lmm <- calibrate_lmm(samples = sample_c)
 sample_d_lmm <- calibrate_lmm(samples = sample_d)
 ```
 
-Using 50 sample points, both criteria the number of points and point-pairs per
-lag enable an accurate estimate of the nugget variance if the range is above 50
-m. For a short range (5 m), these criteria are somewhat efficient only when the
-nugget variance is very small.
-Estimating the partial sill was somewhat difficult. But it appears that using
-the number of points per lag makes the better estimates when the partial sill is
-moderate to high, and the range is bellow 50 m. The number of point-pairs is
-more efficient for low to moderate partial sill when the range is bellow 50 m.
-No sample configuration made an accurate estimate of the range when the nugget
-variance is high, or when the range is very long (500 m). Using the number of 
-points per lag as the optimization criterion was more efficient to estimate 
-the range (5 and 50 m) when the nugget variance was modetrate to low.
-Both random and systematic samples were inneficient for all evaluated 
-parameters.
+Both optimization criteria produce sample configurations that are efficient in
+estimating the nugget variance regardless of the sample size, the number of 
+points outperforming the number of point-pairs. Their efficiency is larger when
+the range is moderate (50 m) to long (500 m). For a short range (5 m), both are
+somewhat efficient only when the nugget variance is small (0.1).
 
-With 100 samples, the nugget variance was better estimated when using the number 
-of points as criterion when the range was moderate to long and the nugget 
-small to moderate, and when the nugget was small and the range short. The number
-of poinrt-pairs was efficient in estimating the nugget when it was small for all
-three ranges.
-Again, estimating the partial sill was somwhat difficult. The number of points
-was efficient only with large ranges and small to moderate partial sills.
-Overall, the range is better estimated when it is short to moderate independent
-of the sample configuration.
-Systematic samples improved the prediction with increasing the number of points.
+Estimating the partial sill was somewhat difficult for all sample sizes. In 
+general, using the number of points per lag-distance class as the optimization
+criterion was more efficient than the number of point-pairs. More than three
+samples need to be used to obtain more consistent conclusions.
 
+The range was better estimated as the sample size increased, and when it is
+short to moderate reardless of the sample configuration. For small sample sizes
+(50), using the number of points per lag-distance class as the optimization
+criterion was more efficient to estimate the range (5 and 50 m) when the nugget
+variance was modetrate to low. No sample configuration made an accurate estimate
+of the range when the nugget variance is high (0.9), or when the range is long
+(500).
 
-With 200 sample, both points and point-pairs make an accurate estimate of the 
-nugget when the range is moderate to long. Systematic sample makes precise
-estimates, but overstimates the nugget.
-
-Again, estimating the partial sill was somwhat difficult. Curiously, the 
-systematic sample was the one that performed best when the range was moderate.
-The number of point-pairs was consistently better when the partial sill was 
-high. The number of points was consistently better when the partial sill was 
-low.
-
-Overall, the range is better estimated when it is short to moderate independent
-of the sample configuration.
+Overall, the random sample was completelly ineficient, while the efficiency of
+the systematic sample increased with the sample size.
 
 ```{r}
 # Compare the estimated parameters with the true parameters
