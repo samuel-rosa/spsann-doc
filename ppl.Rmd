@@ -468,21 +468,22 @@ rm(list = ls())
 
 ## Comparisson with other sample configurations
 
-This example was used to prepare an abstract to the [Pedometrics 2015], which
-takes place in Córdoba, Spain, between 14 and 18 of September. We compare a
-sample configuration obtained using the number of points per lag as the
+This example was used to prepare an abstract to the [Pedometrics 2015][ref01], 
+which takes place in Córdoba, Spain, between 14 and 18 of September. We compare
+a sample configuration obtained using the number of points per lag as the
 optimization criterion with other sample configurations: random and systematic,
 and a sample configuration optimized aiming at the distribution of the number 
 of point-pairs per lag. Our objective is to see which sample configuration is
-better in capturing the true form of the data generating process. We do so 
-sampling form simulated realities and then fitting linear mixed models with the
-sampled data. The best performing sample configuration is that for which the 
+more efficient in capturing the true form of the data generating process. We do
+so sampling form simulated realities and then fitting linear mixed models with
+the sampled data. The best performing sample configuration is that for which the 
 estimated variogram model parameters are closer to the true variogram model
 parameters.
 
-```{r}
-# Clean workspace and load required packages, load simulated realities created
-# in a previous R section, and source user-defined functions
+```{r, echo=FALSE, message=FALSE}
+# Clean workspace, load required packages, and source user-defined functions
+# Load simulated realities created in a previous R section
+# All auxiliary files are stored in the tmp folder
 rm(list = ls())
 gc()
 require(pedometrics)
@@ -492,23 +493,25 @@ require(rgeos)
 require(geoR)
 require(lattice)
 require(gridExtra)
-load("tmp/ppl-sim-real.rda")
 source("tmp/ppl.R")
+load("tmp/ppl-sim-real.rda")
 ```
 
-The spatial domain is a square of 500 by 500 (unitless). The cell size of the 
-sampling/prediction grid is equal to 1 (unitless). The maximum jittering in the
-x- and y-coordinates is defined using the sides of the bounding box of the
-spatial domain (500). The minimum jittering for both coordinates is equal the
-square root of two times the grid cell size (`sqrt(2 * 1) = 1.414214`). We use
-seven exponentially spaced lag-distance classes. The lag-distance cut-off is 
-set as equal to the radius of the bounding box of the spatial domain. The
-solution is to be found with a maximum of 50000 iterations. We use three 
-samples to have more confidence about the results.
+The spatial domain is a square of 500 by 500 (unitless). The spacing of the 
+sampling grid is equal to 1 (unitless). The maximum jittering in the x- and 
+y-coordinates in the first iteration is equal to the sides of the bounding box
+of the spatial domain (500). The minimum jittering for both coordinates in the
+first iteration is equal to the square root of the sum of the squares of the
+grid spacing in the x- and y-coordinates (see the [Pythagorean theorem][ref02]). 
+This guarantees that the point can be shifted to any of the eight nearest
+neighbouring points. We use seven exponentially spaced lag-distance classes. The
+lag-distance cut-off is equal to the [circumradius][ref03] of the bounding box
+of the spatial domain. The solution to the optimization problem has to be found
+with a maximum of 50000 iterations.
 
 ```{r}
-# Generate the spatial domain and sampling/prediction grid, and set the 
-# parameters for the optimization
+# Generate the spatial domain and sampling grid
+# Set the parameters for the optimization
 nx <- ny <- 500
 s1 <- 1:nx
 s1 <- s1 - 0.5
@@ -524,52 +527,62 @@ diago <- sqrt((x.max * x.max) + (y.max * y.max))
 cutoff <- diago / 2
 lags <- 7
 iter <- 100000
-n <- 3
 seed <- 2000
 ```
 
-The variogram model parameters used to simulate realities are described bellow.
-Their definition is based on the study of [Lark (2002)]. The combination of the
-different values results in nice scenarios. The range parameter of the variogram
-model goes from very short (5 units) to very large (500 units) spatial 
-dependence. We do not expect any sample configuration to enable estimating the
-true range parameter of 500 units because estimates above the radius of the
-spatial domain are highly uncertain. Our goal is to see the behaviour of the
-different sample configurations in such an unfavorable case. The quantity of
-spatially structured variance (partial sill) also varies from very little (0.1)
-to very much (0.9).
+Before we run the optimization algorithm, we simulate (unconditionally) nine
+realities. These realities consist of autocorrelated isotropic Gaussian random
+fields. The variogram model parameters used to simulate these realities are
+described bellow. Their definition is based on the study of 
+[Lark (2002)][ref04]. The range of spatial dependence of the variogram model
+goes from very short (5 units) to very long (500 units). We do not expect any
+sample configuration to accurately estimate the true range parameter of 500
+units since estimates beyond the circumradius of the spatial domain are highly
+uncertain. Our goal is to see the behaviour of the different sample 
+configurations in such an unfavorable case. The quantity of spatially structured
+variance (partial sill) also varies from very little (0.1) to very much (0.9).
 
 ```{r}
-# Variogram models based on the study of Lark (2002)
+# Simulate realities
+# Variogram model parameters based on the study of Lark (2002)
 model <- "exponential"
-#range <- c(10, 30, 50)
 range <- c(5, 50, 500)
 p_sill <- c(0.1, 0.5, 0.9)
 models <- cbind(model = rep(model, 9),
                 expand.grid(p_sill = p_sill, range = range))
 models$nugget <- 1 - models$p_sill
 models$model <- as.character(models$model)
-
-# Simulate realities and save in the tmp folder for later use
 sim_real <- simulate_realities(models = models, grid = candi[, 2:3])
 plot_simulate_realities(sim_real)
+```
+
+```{r, echo=FALSE, message=FALSE}
+# Save the simulate realities in the tmp folder
 save(sim_real, file = "tmp/ppl-sim-real.rda")
 ```
 
-The next step is to create the sample configurations. The parameters of the
-spatial simulated annealling algorithm were described above. The other two 
-sample configurations are a random sample and a systematic nonaligned sample.
-The use of the systematic nonaligned sample is because there is randomness in 
-the selection of the point locations, which guarantees that the three samples
-will be different. This type of sample also produces a few clusters of points,
-which is important to estimate the nugget variance. The resulting samples are 
-checked visually and by computing the number of points and point-pairs per 
-lag-distance class. The last is important to see if the optimization algorithm
-converged to the optimum solution in all cases.
+Now we create the four sample configurations. Because we want to have more 
+confidence about the results, we create the four sample configurations three
+times setting a different random seed each time. If we had replicated each
+sample configuration many more times, then we could find (numerically) the 
+approximate confidence intervals for the variogram models and its parameters.
+This was the approach adopted by [Webster and Oliver (1992)][ref05], the 
+difference being that they used the same sample configuration (a regular grid)
+and moved it over the study area. We also use three sample sizes to see if the
+number of sample points has any influence on the results.
+
+We use systematic nonaligned sample configurations because there is randomness 
+in the selection of the point locations, which guarantees that the three sample
+configurations will be different. This type of sample also produces a few
+clusters of points, which is important to estimate the nugget variance. The
+resulting samples are checked visually and by computing the number of points and
+point-pairs per lag-distance class. The last is important to see if the
+optimization algorithm converged to the optimum solution in all cases.
 
 ```{r}
-# Optimize the sample configurations for three sample sizes and
-# save for later use
+# Optimize the sample configurations for three sample sizes
+# Save the samples for later use
+n <- 3
 pts <- c(50, 100, 200)
 for (i in 1:length(pts)) {
   sample_a <- optim_many_samples(pts = pts[i], lags = lags, iter = iter, 
@@ -691,5 +704,8 @@ dev.off()
 ```
 
 
-[Pedometrics 2015]: https://sites.google.com/site/pedometrics2015/home
-[Lark (2002)]: http://www.sciencedirect.com/science/article/pii/S0016706101000921
+[ref01]: https://sites.google.com/site/pedometrics2015
+[ref02]: https://en.wikipedia.org/wiki/Pythagorean_theorem
+[ref03]: https://en.wikipedia.org/wiki/Circumscribed_circle
+[ref04]: http://www.sciencedirect.com/science/article/pii/S0016706101000921
+[ref05]: http://dx.doi.org/10.1111/j.1365-2389.1992.tb00128.x
