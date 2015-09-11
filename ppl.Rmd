@@ -493,8 +493,8 @@ require(rgeos)
 require(geoR)
 require(lattice)
 require(gridExtra)
-source("tmp/ppl.R")
-load("tmp/ppl-sim-real.rda")
+source("code/R/helper_functions.R")
+load("data/R/ppl-sim-real.rda")
 ```
 
 The spatial domain is a square of 500 by 500 (unitless). The spacing of the 
@@ -542,26 +542,24 @@ uncertain. Our goal is to see the behaviour of the different sample
 configurations in such an unfavorable case. The quantity of spatially structured
 variance (partial sill) also varies from very little (0.1) to very much (0.9).
 
-```{r}
+```{r, echo=FALSE, message=FALSE}
 # Simulate realities
 # Variogram model parameters based on the study of Lark (2002)
 model <- "exponential"
 range <- c(5, 50, 500)
 p_sill <- c(0.1, 0.5, 0.9)
-models <- cbind(model = rep(model, 9),
+models <- cbind(model = rep(model, 9), 
                 expand.grid(p_sill = p_sill, range = range))
 models$nugget <- 1 - models$p_sill
 models$model <- as.character(models$model)
 sim_real <- simulate_realities(models = models, grid = candi[, 2:3])
 dev.off()
-png("tmp/ppl-sim-real.png")
+png("res/fig/ppl-sim-real.png", res = 300, height = 150, width = 150, 
+    units = 'mm')
 plot_simulate_realities(sim_real)
 dev.off()
-```
-
-```{r, echo=FALSE, message=FALSE}
-# Save the simulate realities in the tmp folder
-save(sim_real, file = "tmp/ppl-sim-real.rda")
+# Save the simulate realities in the Rdata folder
+save(sim_real, file = "data/R/ppl-sim-real.rda")
 ```
 
 Now we create the four sample configurations. Because we want to have more 
@@ -596,7 +594,7 @@ for (i in 1:length(pts)) {
                              boundary = boundary, seed = seed)
   sample_d <- many_spsamples(pts = pts[i], n = n, type = "nonaligned", 
                              boundary = boundary, seed = seed)
-  file <- paste("tmp/ppl_samples_", pts[i], ".rda", sep = "")
+  file <- paste("data/R/ppl_samples_", pts[i], ".rda", sep = "")
   save(sample_a, sample_b, sample_c, sample_d, file = file)
   rm(sample_a, sample_b, sample_c, sample_d)
   gc()
@@ -613,9 +611,8 @@ the last two lag-distance classes.
 
 ```{r}
 # Check the resulting sample configurations (select a single rda file)
-#load("tmp/ppl_samples_50.rda")
-#load("tmp/ppl_samples_100.rda")
-#load("tmp/ppl_samples_200.rda")
+n <- 50
+load(paste("data/R/ppl_samples_", n, ".rda", sep = ""))
 # Points
 plot_ppl_distribution(samples = list(sample_a, sample_b, sample_c, sample_d), 
                       lags = lags, cutoff = cutoff, candi = candi,
@@ -626,8 +623,9 @@ plot_ppl_distribution(samples = list(sample_a, sample_b, sample_c, sample_d),
                       pairs = TRUE, main = "Pairs (n = 50)")
 # Plot samples
 dev.off()
-pdf("tmp/ppl-samples-200.pdf")
-plot_samples(list(sample_a, sample_b, sample_c, sample_d), n = 200)
+png(paste("res/fig/ppl-samples-", n, ".pdf", sep = ""), res = 300, 
+    height = 150, width = 150, units = 'mm')
+plot_samples(list(sample_a, sample_b, sample_c, sample_d), n = n)
 dev.off()
 ```
 
@@ -682,21 +680,21 @@ the systematic sample increased with the sample size.
 ```{r}
 # Compare the estimated parameters with the true parameters
 sample_a_lmm <- data.frame(sample = "points", models, sample_a_lmm)
-sample_b_lmm <- data.frame(sample = "pairs", models, sample_b_lmm)
+sample_b_lmm <- data.frame(sample = "point-pairs", models, sample_b_lmm)
 sample_c_lmm <- data.frame(sample = "random", models, sample_c_lmm)
 sample_d_lmm <- data.frame(sample = "systematic", models, sample_d_lmm)
 sample_all <- rbind(sample_a_lmm, sample_b_lmm, sample_c_lmm, sample_d_lmm)
 sample_all <- sample_all[, -2]
 x11()
-n <- 200
+n <- 50
 dev.off()
-pdf(paste("tmp/nugget-", n, "pts.pdf", sep = ""))
+pdf(paste("res/fig/nugget-", n, "pts.pdf", sep = ""))
 plot_nugget(sample_all, n = n)
 dev.off()
-pdf(paste("tmp/partial-sill-", n, "pts.pdf", sep = ""))
+pdf(paste("res/fig/partial-sill-", n, "pts.pdf", sep = ""))
 plot_partial_sill(sample_all, n = n)
 dev.off()
-pdf(paste("tmp/range-", n, "pts.pdf", sep = ""))
+pdf(paste("res/fig/range-", n, "pts.pdf", sep = ""))
 plot_range(sample_all, n = n)
 dev.off()
 ```
