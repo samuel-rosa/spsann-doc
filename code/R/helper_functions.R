@@ -74,7 +74,7 @@ check_samples <-
   }
 # Function to plot the samples
 plot_samples <-
-  function (samples, n) {
+  function (samples, n, phd = FALSE) {
     n1 <- length(samples)
     samples <- unlist(samples, recursive = FALSE)
     n2 <- length(samples)
@@ -87,12 +87,22 @@ plot_samples <-
     repet <- unlist(sapply(1:length(repet), 
                            function (i) {rep(repet[i], n3[i])}))
     samples <- data.frame(samples[, -1], type, repet)
-    xyplot(y ~ x | type + repet, data = as.data.frame(samples), pch = 20, 
-           cex = 0.2, ylim = c(0, 500), xlim = c(0, 500),
-           xlab = NULL, ylab = NULL, 
-           scales = list(draw = TRUE),
-           # main = paste("n = ", n, sep = ""), 
-           aspect = "iso")
+    if (phd) { # PhD thesis defence
+      xyplot(y ~ x | type, data = as.data.frame(samples), pch = 20, 
+             subset = repet == "B",
+             cex = 0.2, ylim = c(0, 500), xlim = c(0, 500),
+             xlab = NULL, ylab = NULL, 
+             scales = list(draw = FALSE),
+             # main = paste("n = ", n, sep = ""), 
+             aspect = "iso") 
+    } else {
+      xyplot(y ~ x | type + repet, data = as.data.frame(samples), pch = 20, 
+             cex = 0.2, ylim = c(0, 500), xlim = c(0, 500),
+             xlab = NULL, ylab = NULL, 
+             scales = list(draw = TRUE),
+             # main = paste("n = ", n, sep = ""), 
+             aspect = "iso")  
+    }
   }
 # Function to plot the distribution of points (or point-pairs per lag)
 plot_ppl_distribution <- 

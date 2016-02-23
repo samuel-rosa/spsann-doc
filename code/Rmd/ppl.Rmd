@@ -611,7 +611,7 @@ the last two lag-distance classes.
 
 ```{r}
 # Check the resulting sample configurations (select a single rda file)
-n <- 50
+n <- 200
 load(paste("data/R/ppl_samples_", n, ".rda", sep = ""))
 # Points
 plot_ppl_distribution(samples = list(sample_a, sample_b, sample_c, sample_d), 
@@ -623,9 +623,12 @@ plot_ppl_distribution(samples = list(sample_a, sample_b, sample_c, sample_d),
                       pairs = TRUE, main = "Pairs (n = 50)")
 # Plot samples
 dev.off()
-png(paste("res/fig/ppl-samples-", n, ".pdf", sep = ""), res = 300, 
+png(paste("res/fig/ppl-samples-", n, ".png", sep = ""), res = 300, 
     height = 150, width = 150, units = 'mm')
-plot_samples(list(sample_a, sample_b, sample_c, sample_d), n = n)
+# lattice::trellis.par.set(fontsize = list(text = 14, points = 12))  # PhD thesis defence
+plot_samples(samples = list(sample_a, sample_b, sample_c, sample_d),
+             # phd = TRUE, # PhD thesis defence
+             n = n)
 dev.off()
 ```
 
